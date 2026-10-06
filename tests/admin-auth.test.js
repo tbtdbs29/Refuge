@@ -10,8 +10,8 @@ let editorId;
 before(async () => {
   env = await setupTestEnv('auth');
   users = env.services.userService;
-  adminId = users.create(ADMIN);
-  editorId = users.create(EDITOR);
+  adminId = await users.create(ADMIN);
+  editorId = await users.create(EDITOR);
 });
 
 after(() => env.cleanup());
@@ -45,11 +45,11 @@ describe('accès non authentifié', () => {
   test('un POST avec jeton CSRF valide mais sans être connecté redirige vers la connexion sans rien créer', async () => {
     const agent = env.newAgent();
     const token = await csrfFrom(agent, '/admin/connexion');
-    const before = env.services.eventService.month(2030, 1, {}).events.length;
+    const before = (await env.services.eventService.month(2030, 1, {})).events.length;
     const res = await agent.post('/admin/agenda').type('form').send({ _csrf: token, title: 'Intrus', start_date: '2030-01-10' });
     assert.equal(res.status, 302);
     assert.equal(res.headers.location, '/admin/connexion?suite=%2Fadmin');
-    assert.equal(env.services.eventService.month(2030, 1, {}).events.length, before);
+    assert.equal((await env.services.eventService.month(2030, 1, {})).events.length, before);
   });
 
   test('un cookie de session forgé (non signé) ne donne pas accès', async () => {
@@ -221,19 +221,19 @@ describe('rôles', () => {
   test('un éditeur ne peut pas créer de compte (403, aucun compte créé)', async () => {
     const res = await editor.post('/admin/comptes').type('form').send({ _csrf: editorToken, name: 'Pirate', email: 'pirate@refuge.test', role: 'admin', password: 'pirate-password-1' });
     assert.equal(res.status, 403);
-    assert.ok(!users.list().some((user) => user.email === 'pirate@refuge.test'));
+    assert.ok(!(await users.list()).some((user) => user.email === 'pirate@refuge.test'));
   });
 
   test('un éditeur ne peut pas se promouvoir administrateur (403)', async () => {
     const res = await editor.post(`/admin/comptes/${editorId}`).type('form').send({ _csrf: editorToken, name: EDITOR.name, email: EDITOR.email, role: 'admin', password: '' });
     assert.equal(res.status, 403);
-    assert.equal(users.getById(editorId).role, 'editor');
+    assert.equal((await users.getById(editorId)).role, 'editor');
   });
 
   test('un éditeur ne peut pas supprimer un compte (403)', async () => {
     const res = await editor.post(`/admin/comptes/${adminId}/supprimer`).type('form').send({ _csrf: editorToken });
     assert.equal(res.status, 403);
-    assert.ok(users.findById(adminId));
+    assert.ok(await users.findById(adminId));
   });
 
   test('un administrateur accède à la gestion des comptes', async () => {
@@ -251,7 +251,7 @@ describe('mon compte : changement de mot de passe', () => {
   let token;
 
   before(async () => {
-    users.create(account);
+    await users.create(account);
     agent = env.newAgent();
     token = await login(agent, account.email, account.password);
   });
@@ -300,7 +300,7 @@ describe('gestion des comptes (administrateur)', () => {
     const res = await send('/admin/comptes', { name: 'Nouvelle Benevole', email: 'nouvelle@refuge.test', role: 'editor', password: 'provisoire-123' });
     assert.equal(res.status, 303);
     assert.equal(res.headers.location, '/admin/comptes');
-    const created = users.list().find((user) => user.email === 'nouvelle@refuge.test');
+    const created = (await users.list()).find((user) => user.email === 'nouvelle@refuge.test');
     assert.equal(created.role, 'editor');
     assert.equal((await postLogin(env.newAgent(), { email: 'nouvelle@refuge.test', password: 'provisoire-123' })).status, 303);
   });
@@ -314,7 +314,7 @@ describe('gestion des comptes (administrateur)', () => {
     const res = await send('/admin/comptes', { name: 'Sans Mdp', email: 'sansmdp@refuge.test', role: 'editor', password: '' });
     assert.equal(res.status, 422);
     assert.ok(res.text.includes('Choisissez un mot de passe provisoire'));
-    assert.ok(!users.list().some((user) => user.email === 'sansmdp@refuge.test'));
+    assert.ok(!(await users.list()).some((user) => user.email === 'sansmdp@refuge.test'));
   });
 
   test('refuse un mot de passe trop court (422)', async () => {
@@ -333,22 +333,22 @@ describe('gestion des comptes (administrateur)', () => {
     assert.equal((await send('/admin/comptes', { name: 'X', email: 'pas-un-email', role: 'editor', password: 'valide-12345' })).status, 422);
     const res = await send('/admin/comptes', { name: 'X', email: 'role@refuge.test', role: 'superadmin', password: 'valide-12345' });
     assert.equal(res.status, 422);
-    assert.ok(!users.list().some((user) => user.email === 'role@refuge.test'));
+    assert.ok(!(await users.list()).some((user) => user.email === 'role@refuge.test'));
   });
 
   test('modifier un compte sans mot de passe conserve l’ancien', async () => {
-    const id = users.create({ name: 'Garde Mdp', email: 'garde@refuge.test', password: 'garde-password-1', role: 'editor' });
+    const id = await users.create({ name: 'Garde Mdp', email: 'garde@refuge.test', password: 'garde-password-1', role: 'editor' });
     const res = await send(`/admin/comptes/${id}`, { name: 'Garde Renomme', email: 'garde@refuge.test', role: 'editor', password: '' });
     assert.equal(res.status, 303);
-    assert.equal(users.getById(id).name, 'Garde Renomme');
+    assert.equal((await users.getById(id)).name, 'Garde Renomme');
     assert.equal((await postLogin(env.newAgent(), { email: 'garde@refuge.test', password: 'garde-password-1' })).status, 303);
   });
 
   test('modifier un compte vers un email déjà pris est refusé (422)', async () => {
-    const id = users.create({ name: 'Autre', email: 'autre@refuge.test', password: 'autre-password-1', role: 'editor' });
+    const id = await users.create({ name: 'Autre', email: 'autre@refuge.test', password: 'autre-password-1', role: 'editor' });
     const res = await send(`/admin/comptes/${id}`, { name: 'Autre', email: ADMIN.email, role: 'editor', password: '' });
     assert.equal(res.status, 422);
-    assert.equal(users.getById(id).email, 'autre@refuge.test');
+    assert.equal((await users.getById(id)).email, 'autre@refuge.test');
   });
 
   test('un compte inexistant répond 404', async () => {
@@ -360,38 +360,38 @@ describe('gestion des comptes (administrateur)', () => {
     const res = await send(`/admin/comptes/${adminId}/supprimer`);
     assert.equal(res.status, 400);
     assert.ok(decode(res.text).includes('Vous ne pouvez pas supprimer votre propre compte.'));
-    assert.ok(users.findById(adminId));
+    assert.ok(await users.findById(adminId));
   });
 
   test('le dernier administrateur ne peut pas être rétrogradé', async () => {
-    const admins = users.list().filter((user) => user.role === 'admin');
+    const admins = (await users.list()).filter((user) => user.role === 'admin');
     assert.equal(admins.length, 1);
     const res = await send(`/admin/comptes/${adminId}`, { name: ADMIN.name, email: ADMIN.email, role: 'editor', password: '' });
     assert.equal(res.status, 422);
     assert.ok(decode(res.text).includes('Il doit rester au moins un administrateur.'));
-    assert.equal(users.getById(adminId).role, 'admin');
+    assert.equal((await users.getById(adminId)).role, 'admin');
   });
 
   test('un administrateur ne peut pas changer son propre rôle même s’il reste un autre admin', async () => {
-    const otherAdmin = users.create({ name: 'Second Admin', email: 'second@refuge.test', password: 'second-admin-123', role: 'admin' });
+    const otherAdmin = await users.create({ name: 'Second Admin', email: 'second@refuge.test', password: 'second-admin-123', role: 'admin' });
     const res = await send(`/admin/comptes/${adminId}`, { name: ADMIN.name, email: ADMIN.email, role: 'editor', password: '' });
     assert.equal(res.status, 403);
-    assert.equal(users.getById(adminId).role, 'admin');
-    users.delete(otherAdmin, { id: adminId });
+    assert.equal((await users.getById(adminId)).role, 'admin');
+    await users.delete(otherAdmin, { id: adminId });
   });
 
   test('un administrateur peut rétrograder puis supprimer un autre administrateur', async () => {
-    const otherAdmin = users.create({ name: 'Troisieme Admin', email: 'troisieme@refuge.test', password: 'troisieme-admin-1', role: 'admin' });
+    const otherAdmin = await users.create({ name: 'Troisieme Admin', email: 'troisieme@refuge.test', password: 'troisieme-admin-1', role: 'admin' });
     const demote = await send(`/admin/comptes/${otherAdmin}`, { name: 'Troisieme Admin', email: 'troisieme@refuge.test', role: 'editor', password: '' });
     assert.equal(demote.status, 303);
-    assert.equal(users.getById(otherAdmin).role, 'editor');
+    assert.equal((await users.getById(otherAdmin)).role, 'editor');
     const remove = await send(`/admin/comptes/${otherAdmin}/supprimer`);
     assert.equal(remove.status, 303);
-    assert.equal(users.findById(otherAdmin), undefined);
+    assert.equal(await users.findById(otherAdmin), undefined);
   });
 
   test('un compte supprimé perd immédiatement l’accès à sa session ouverte', async () => {
-    const id = users.create({ name: 'Bientot Parti', email: 'parti@refuge.test', password: 'parti-password-1', role: 'editor' });
+    const id = await users.create({ name: 'Bientot Parti', email: 'parti@refuge.test', password: 'parti-password-1', role: 'editor' });
     const victim = env.newAgent();
     await login(victim, 'parti@refuge.test', 'parti-password-1');
     assert.equal((await victim.get('/admin')).status, 200);
@@ -400,7 +400,7 @@ describe('gestion des comptes (administrateur)', () => {
   });
 
   test('un compte rétrogradé perd immédiatement l’accès aux pages administrateur', async () => {
-    const id = users.create({ name: 'Ex Admin', email: 'exadmin@refuge.test', password: 'exadmin-password', role: 'admin' });
+    const id = await users.create({ name: 'Ex Admin', email: 'exadmin@refuge.test', password: 'exadmin-password', role: 'admin' });
     const other = env.newAgent();
     await login(other, 'exadmin@refuge.test', 'exadmin-password');
     assert.equal((await other.get('/admin/comptes')).status, 200);

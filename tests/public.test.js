@@ -41,8 +41,8 @@ before(async () => {
   ids.adopteCache = await makeAnimal({ name: 'Secretadopte', species: 'chat', status: 'adopte', published: '' });
   ids.xss = await makeAnimal({ name: '<img src=x onerror=alert(1)>', species: 'chat', description: '<script>alert("pwn")</script>\n\n**Câlin**' });
 
-  ids.publicEvent = makeEvent({ title: 'Journee adoption publique', start_date: wallClockInDays(env.format, 10).slice(0, 10), start_time: '10:00', end_time: '17:00', visibility: 'public' });
-  ids.internalEvent = makeEvent({ title: 'Reunion secrete benevoles', start_date: wallClockInDays(env.format, 10).slice(0, 10), start_time: '19:00', visibility: 'interne', category: 'benevoles' });
+  ids.publicEvent = await makeEvent({ title: 'Journee adoption publique', start_date: wallClockInDays(env.format, 10).slice(0, 10), start_time: '10:00', end_time: '17:00', visibility: 'public' });
+  ids.internalEvent = await makeEvent({ title: 'Reunion secrete benevoles', start_date: wallClockInDays(env.format, 10).slice(0, 10), start_time: '19:00', visibility: 'interne', category: 'benevoles' });
 
   ids.livePost = await makePost({ title: 'Article publie', body: 'Contenu publie', published_at: wallClockInDays(env.format, -2) });
   ids.futurePost = await makePost({ title: 'Article programme', body: 'Contenu futur', published_at: wallClockInDays(env.format, 3) });
@@ -282,9 +282,15 @@ describe('agenda', () => {
     assert.ok(!res.text.includes('Reunion secrete benevoles'));
   });
 
-  test('un identifiant d’événement inconnu ou non numérique répond 404', async () => {
+  test('un identifiant d’événement inconnu répond 404', async () => {
     assert.equal((await env.request().get('/agenda/999999')).status, 404);
-    assert.equal((await env.request().get('/agenda/abc')).status, 404);
+    assert.equal((await env.request().get('/agenda/999999.ics')).status, 404);
+  });
+
+  test('un identifiant d’événement non numérique ou infini répond 404 (pas 500)', async () => {
+    for (const url of ['/agenda/abc', '/agenda/abc.ics', '/agenda/1e400', '/agenda/Infinity']) {
+      assert.equal((await env.request().get(url)).status, 404, url);
+    }
   });
 
   test('l’export .ics d’un événement public est un fichier calendrier', async () => {
@@ -373,12 +379,12 @@ describe('formulaire de contact', () => {
   });
 
   test('un message valide est enregistré puis redirige vers la confirmation', async () => {
-    const before = messages().length;
+    const before = (await messages()).length;
     const agent = env.newAgent();
     const res = await post(valid({ name: 'Jeanne Valide', animal_id: String(ids.rex.id) }), { agent });
     assert.equal(res.status, 303);
     assert.equal(res.headers.location, '/contact?envoye=1');
-    const list = messages();
+    const list = await messages();
     assert.equal(list.length, before + 1);
     const saved = list.find((message) => message.name === 'Jeanne Valide');
     assert.equal(saved.email, 'jeanne@example.fr');
@@ -391,7 +397,7 @@ describe('formulaire de contact', () => {
 
   test('les espaces autour du nom et de l’email sont retirés', async () => {
     await post(valid({ name: '  Paul Espace  ', email: '  paul@example.fr ' }));
-    const saved = messages().find((message) => message.name === 'Paul Espace');
+    const saved = (await messages()).find((message) => message.name === 'Paul Espace');
     assert.ok(saved, 'name not trimmed');
     assert.equal(saved.email, 'paul@example.fr');
   });
@@ -401,7 +407,7 @@ describe('formulaire de contact', () => {
     delete fields.topic;
     const res = await post(fields);
     assert.equal(res.status, 303);
-    assert.equal(messages().find((message) => message.name === 'Sans Sujet').topic, 'autre');
+    assert.equal((await messages()).find((message) => message.name === 'Sans Sujet').topic, 'autre');
   });
 
   const invalidCases = [
@@ -416,19 +422,19 @@ describe('formulaire de contact', () => {
   ];
   for (const [label, override, message] of invalidCases) {
     test(`refuse un message avec ${label} (422, message en français, rien n’est enregistré)`, async () => {
-      const before = messages().length;
+      const before = (await messages()).length;
       const res = await post(valid({ name: 'Invalide', ...override }));
       assert.equal(res.status, 422);
       assert.ok(decode(res.text).includes(message), `missing "${message}"`);
-      assert.equal(messages().length, before);
+      assert.equal((await messages()).length, before);
     });
   }
 
   test('refuse un sujet hors liste (422)', async () => {
-    const before = messages().length;
+    const before = (await messages()).length;
     const res = await post(valid({ topic: 'piratage' }));
     assert.equal(res.status, 422);
-    assert.equal(messages().length, before);
+    assert.equal((await messages()).length, before);
   });
 
   test('en cas d’erreur, les valeurs saisies sont réaffichées échappées', async () => {
@@ -450,23 +456,37 @@ describe('formulaire de contact', () => {
     assert.ok(res.status < 500, `status ${res.status}`);
   });
 
+  test('un animal_id non numérique ou négatif est refusé proprement (422)', async () => {
+    for (const animalId of ['abc', '1.5', '-1']) {
+      const res = await post(valid({ name: 'Animal Bizarre', animal_id: animalId }));
+      assert.equal(res.status, 422, `animal_id=${animalId}`);
+    }
+  });
+
+  test('un animal_id infini ne provoque pas d’erreur serveur', async () => {
+    for (const animalId of ['Infinity', '1e400']) {
+      const res = await post(valid({ name: 'Animal Infini', animal_id: animalId }));
+      assert.ok(res.status < 500, `animal_id=${animalId}: status ${res.status}`);
+    }
+  });
+
   test('le champ piège rempli simule un succès sans rien enregistrer', async () => {
-    const before = messages().length;
+    const before = (await messages()).length;
     const res = await post(valid({ name: 'Robot Spam', website: 'http://spam.example' }));
     assert.equal(res.status, 303);
     assert.equal(res.headers.location, '/contact?envoye=1');
-    assert.equal(messages().length, before);
-    assert.ok(!messages().some((message) => message.name === 'Robot Spam'));
+    assert.equal((await messages()).length, before);
+    assert.ok(!(await messages()).some((message) => message.name === 'Robot Spam'));
   });
 
   test('un envoi sans jeton CSRF est refusé (403) et rien n’est enregistré', async () => {
-    const before = messages().length;
+    const before = (await messages()).length;
     const agent = env.newAgent();
     await agent.get('/contact');
     const res = await agent.post('/contact').type('form').send(valid());
     assert.equal(res.status, 403);
     assert.ok(decode(res.text).includes('Le formulaire a expiré'));
-    assert.equal(messages().length, before);
+    assert.equal((await messages()).length, before);
   });
 
   test('un jeton CSRF erroné est refusé (403)', async () => {

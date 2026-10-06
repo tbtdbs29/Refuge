@@ -62,35 +62,35 @@ function decorate(message) {
 
 export const messageService = {
   async submit(data) {
-    const animalId = data.animal_id && animalRepository.findById(data.animal_id) ? data.animal_id : null;
-    const id = messageRepository.create({ ...data, animal_id: animalId });
+    const animalId = data.animal_id && (await animalRepository.findById(data.animal_id)) ? data.animal_id : null;
+    const id = await messageRepository.create({ ...data, animal_id: animalId });
     logger.info('message.received', { id, topic: data.topic });
-    await notify(messageRepository.findById(id));
+    await notify(await messageRepository.findById(id));
     return id;
   },
 
-  list(status) {
-    return messageRepository.list({ status }).map(decorate);
+  async list(status) {
+    return (await messageRepository.list({ status })).map(decorate);
   },
 
-  counts() {
-    const counts = messageRepository.countByStatus();
+  async counts() {
+    const counts = await messageRepository.countByStatus();
     return { nouveau: counts.nouveau || 0, traite: counts.traite || 0, archive: counts.archive || 0 };
   },
 
-  getById(id) {
-    const message = messageRepository.findById(id);
+  async getById(id) {
+    const message = await messageRepository.findById(id);
     if (!message) throw new NotFoundError('Message introuvable.');
     return decorate(message);
   },
 
-  setStatus(id, status) {
-    this.getById(id);
-    messageRepository.setStatus(id, status);
+  async setStatus(id, status) {
+    await this.getById(id);
+    await messageRepository.setStatus(id, status);
   },
 
-  delete(id) {
-    this.getById(id);
-    messageRepository.delete(id);
+  async delete(id) {
+    await this.getById(id);
+    await messageRepository.delete(id);
   },
 };

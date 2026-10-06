@@ -7,14 +7,14 @@ import { logger } from '../utils/logger.js';
 const DUMMY_HASH = hashPassword('timing-equalizer');
 
 export const userService = {
-  authenticate(email, password) {
-    const user = userRepository.findWithHashByEmail(email.trim());
+  async authenticate(email, password) {
+    const user = await userRepository.findWithHashByEmail(email.trim());
     const valid = verifyPassword(password, user?.password_hash || DUMMY_HASH);
     if (!user || !valid) {
       logger.warn('auth.failed');
       return null;
     }
-    userRepository.touchLogin(user.id);
+    await userRepository.touchLogin(user.id);
     logger.info('auth.success', { userId: user.id });
     return userRepository.findById(user.id);
   },
@@ -27,50 +27,50 @@ export const userService = {
     return userRepository.list();
   },
 
-  getById(id) {
-    const user = userRepository.findById(id);
+  async getById(id) {
+    const user = await userRepository.findById(id);
     if (!user) throw new NotFoundError('Compte introuvable.');
     return user;
   },
 
-  hasUsers() {
-    return userRepository.count() > 0;
+  async hasUsers() {
+    return (await userRepository.count()) > 0;
   },
 
-  create({ name, email, password, role }) {
-    if (userRepository.emailExists(email)) throw new ValidationError({ email: 'Un compte utilise déjà cet email.' });
-    const id = userRepository.create({ name, email, role, passwordHash: hashPassword(password) });
+  async create({ name, email, password, role }) {
+    if (await userRepository.emailExists(email)) throw new ValidationError({ email: 'Un compte utilise déjà cet email.' });
+    const id = await userRepository.create({ name, email, role, passwordHash: hashPassword(password) });
     logger.info('user.created', { id, role });
     return id;
   },
 
-  update(id, { name, email, role, password }, actor) {
-    const user = this.getById(id);
-    if (userRepository.emailExists(email, id)) throw new ValidationError({ email: 'Un compte utilise déjà cet email.' });
-    if (user.role === 'admin' && role !== 'admin' && userRepository.countAdmins() <= 1) {
+  async update(id, { name, email, role, password }, actor) {
+    const user = await this.getById(id);
+    if (await userRepository.emailExists(email, id)) throw new ValidationError({ email: 'Un compte utilise déjà cet email.' });
+    if (user.role === 'admin' && role !== 'admin' && (await userRepository.countAdmins()) <= 1) {
       throw new ValidationError({ role: 'Il doit rester au moins un administrateur.' });
     }
     if (actor.id === id && role !== actor.role) throw new ForbiddenError('Vous ne pouvez pas changer votre propre rôle.');
-    userRepository.update(id, { name, email, role });
-    if (password) userRepository.setPassword(id, hashPassword(password));
+    await userRepository.update(id, { name, email, role });
+    if (password) await userRepository.setPassword(id, hashPassword(password));
     logger.info('user.updated', { id });
   },
 
-  changeOwnPassword(id, currentPassword, newPassword) {
-    if (!verifyPassword(currentPassword, userRepository.findHashById(id))) {
+  async changeOwnPassword(id, currentPassword, newPassword) {
+    if (!verifyPassword(currentPassword, await userRepository.findHashById(id))) {
       throw new ValidationError({ current: 'Mot de passe actuel incorrect.' });
     }
-    userRepository.setPassword(id, hashPassword(newPassword));
+    await userRepository.setPassword(id, hashPassword(newPassword));
     logger.info('user.password_changed', { id });
   },
 
-  delete(id, actor) {
-    const user = this.getById(id);
+  async delete(id, actor) {
+    const user = await this.getById(id);
     if (actor.id === id) throw new AppError('Vous ne pouvez pas supprimer votre propre compte.', { status: 400, code: 'SELF_DELETE' });
-    if (user.role === 'admin' && userRepository.countAdmins() <= 1) {
+    if (user.role === 'admin' && (await userRepository.countAdmins()) <= 1) {
       throw new AppError('Il doit rester au moins un administrateur.', { status: 400, code: 'LAST_ADMIN' });
     }
-    userRepository.delete(id);
+    await userRepository.delete(id);
     logger.info('user.deleted', { id });
   },
 };

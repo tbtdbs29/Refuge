@@ -21,6 +21,12 @@ export async function setupTestEnv(label) {
   process.env.SMTP_HOST = '';
   process.env.NOTIFY_EMAIL = '';
   process.env.SESSION_SECRET = 'test-secret-for-automated-tests';
+  // Never reach remote services from tests: local SQLite file and local upload directory only.
+  process.env.TURSO_DATABASE_URL = '';
+  process.env.TURSO_AUTH_TOKEN = '';
+  process.env.BLOB_READ_WRITE_TOKEN = '';
+  // Tests give each agent its own X-Forwarded-For so rate limiters stay per test.
+  process.env.TRUST_PROXY = '1';
 
   const { default: supertest } = await import('supertest');
   const { createApp } = await import('../src/app.js');
@@ -34,6 +40,7 @@ export async function setupTestEnv(label) {
   const { config } = await import('../src/config/index.js');
   const format = await import('../src/utils/format.js');
 
+  await db.ensureDb();
   const app = createApp();
 
   const newAgent = () => {

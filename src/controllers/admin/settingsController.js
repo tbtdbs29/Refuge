@@ -64,21 +64,21 @@ const SECTIONS = {
   }),
 };
 
-function render(req, res, { errors = {}, section = req.params.section || 'shelter', values } = {}) {
-  const settings = settingsService.get();
+async function render(req, res, { errors = {}, section = req.params.section || 'shelter', values } = {}) {
+  const settings = await settingsService.get();
   res.render('admin/settings.njk', { errors, section, values: values || settings[section] || {}, all: settings });
 }
 
-export function show(req, res) {
+export async function show(req, res) {
   const section = SECTIONS[req.query.onglet] ? req.query.onglet : 'shelter';
-  render(req, res, { section });
+  await render(req, res, { section });
 }
 
 export const update = formAction(
-  (req, res) => {
+  async (req, res) => {
     const section = req.params.section;
     if (!SECTIONS[section]) throw new NotFoundError();
-    settingsService.update(section, SECTIONS[section](req.body));
+    await settingsService.update(section, SECTIONS[section](req.body));
     req.flash('success', 'Réglages enregistrés. Le site est à jour.');
     res.redirect(303, `/admin/reglages?onglet=${section}`);
   },

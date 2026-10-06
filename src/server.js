@@ -1,9 +1,9 @@
 import { createApp } from './app.js';
 import { config } from './config/index.js';
-import { closeDb, getDb } from './db/index.js';
+import { closeDb, ensureDb } from './db/index.js';
 import { logger } from './utils/logger.js';
 
-getDb();
+await ensureDb();
 const server = createApp().listen(config.port, () => {
   logger.info('server.started', { port: config.port, env: config.env });
 });

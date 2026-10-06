@@ -8,7 +8,7 @@ const [name, email, password] = process.argv.slice(2);
 try {
   const data = validate(userSchema, { name, email, password, role: 'admin' });
   if (!data.password) throw new Error('A password of at least 10 characters is required.');
-  userService.create(data);
+  await userService.create(data);
   console.log(`Administrator account created for ${data.email}.`);
 } catch (error) {
   console.error(error.details ? JSON.stringify(error.details) : error.message);

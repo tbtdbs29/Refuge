@@ -7,19 +7,23 @@ import { messageService } from '../../services/messageService.js';
 import { postService } from '../../services/postService.js';
 import { ValidationError } from '../../utils/errors.js';
 
-export function home(req, res) {
-  res.render('public/home.njk', {
-    featured: animalService.featured(6),
-    recent: animalService.listPublic({ order: 'recent', limit: 6 }),
-    counts: animalService.countsBySpecies(),
-    urgent: animalService.urgent().slice(0, 3),
-    events: eventService.upcoming(3),
-    posts: postService.latest(3),
-    adoptedRecent: animalService.adopted({ limit: 6 }),
-  });
+/** A positive integer id from user input, or 0 (which matches nothing and yields a 404). */
+const toId = (value) => (/^\d{1,12}$/.test(String(value ?? '')) ? Number(value) : 0);
+
+export async function home(req, res) {
+  const [featured, recent, counts, urgent, events, posts, adoptedRecent] = await Promise.all([
+    animalService.featured(6),
+    animalService.listPublic({ order: 'recent', limit: 6 }),
+    animalService.countsBySpecies(),
+    animalService.urgent(),
+    eventService.upcoming(3),
+    postService.latest(3),
+    animalService.adopted({ limit: 6 }),
+  ]);
+  res.render('public/home.njk', { featured, recent, counts, urgent: urgent.slice(0, 3), events, posts, adoptedRecent });
 }
 
-export function animals(req, res) {
+export async function animals(req, res) {
   const speciesPath = typeof req.query.espece === 'string' ? req.query.espece : '';
   const species = SPECIES_BY_PATH[speciesPath];
   const filters = {
@@ -29,10 +33,10 @@ export function animals(req, res) {
     okCats: req.query.chats === '1',
     okDogs: req.query.chiens === '1',
   };
-  const list = animalService.listPublic(filters);
+  const [list, counts] = await Promise.all([animalService.listPublic(filters), animalService.countsBySpecies()]);
   res.render('public/animals.njk', {
     animals: list,
-    counts: animalService.countsBySpecies(),
+    counts,
     species,
     speciesInfo: species ? SPECIES[species] : null,
     query: { espece: speciesPath, sexe: filters.sex || '', enfants: filters.okKids, chats: filters.okCats, chiens: filters.okDogs },
@@ -40,62 +44,65 @@ export function animals(req, res) {
   });
 }
 
-export function animal(req, res) {
-  const item = animalService.getPublic(req.params.slug, { allowUnpublished: Boolean(req.user) });
-  res.render('public/animal.njk', { animal: item, siblings: item.status === 'adopte' ? [] : animalService.siblings(item) });
+export async function animal(req, res) {
+  const item = await animalService.getPublic(req.params.slug, { allowUnpublished: Boolean(req.user) });
+  res.render('public/animal.njk', { animal: item, siblings: item.status === 'adopte' ? [] : await animalService.siblings(item) });
 }
 
-export function adopted(req, res) {
-  res.render('public/adopted.njk', { animals: animalService.adopted({ limit: 120 }), total: animalService.countAdopted() });
+export async function adopted(req, res) {
+  const [animals, total] = await Promise.all([animalService.adopted({ limit: 120 }), animalService.countAdopted()]);
+  res.render('public/adopted.njk', { animals, total });
 }
 
 export function adopt(req, res) {
   res.render('public/adopt.njk');
 }
 
-export function help(req, res) {
-  res.render('public/help.njk', { urgent: animalService.urgent() });
+export async function help(req, res) {
+  res.render('public/help.njk', { urgent: await animalService.urgent() });
 }
 
-export function agenda(req, res) {
+export async function agenda(req, res) {
   const match = /^(\d{4})-(\d{2})$/.exec(String(req.query.mois || ''));
-  const month = eventService.month(match ? Number(match[1]) : undefined, match ? Number(match[2]) : undefined, { publicOnly: true });
-  res.render('public/agenda.njk', { month, upcoming: eventService.upcoming(8) });
+  const [month, upcoming] = await Promise.all([
+    eventService.month(match ? Number(match[1]) : undefined, match ? Number(match[2]) : undefined, { publicOnly: true }),
+    eventService.upcoming(8),
+  ]);
+  res.render('public/agenda.njk', { month, upcoming });
 }
 
-export function agendaEvent(req, res) {
-  res.render('public/event.njk', { event: eventService.getById(Number(req.params.id), { publicOnly: true }) });
+export async function agendaEvent(req, res) {
+  res.render('public/event.njk', { event: await eventService.getById(toId(req.params.id), { publicOnly: true }) });
 }
 
-export function agendaEventIcs(req, res) {
-  const event = eventService.getById(Number(req.params.id), { publicOnly: true });
+export async function agendaEventIcs(req, res) {
+  const event = await eventService.getById(toId(req.params.id), { publicOnly: true });
   res.type('text/calendar').attachment(`refuge-evenement-${event.id}.ics`).send(eventService.toIcs([event]));
 }
 
-export function agendaFeed(req, res) {
-  res.type('text/calendar').send(eventService.toIcs(eventService.upcoming(100)));
+export async function agendaFeed(req, res) {
+  res.type('text/calendar').send(eventService.toIcs(await eventService.upcoming(100)));
 }
 
-export function news(req, res) {
+export async function news(req, res) {
   const page = Number.parseInt(req.query.page, 10) || 1;
   const category = typeof req.query.categorie === 'string' && req.query.categorie ? req.query.categorie : undefined;
-  res.render('public/news.njk', { ...postService.listPublic({ page, category }), category });
+  res.render('public/news.njk', { ...(await postService.listPublic({ page, category })), category });
 }
 
-export function newsPost(req, res) {
-  const post = postService.getPublic(req.params.slug);
-  res.render('public/post.njk', { post, more: postService.latest(4).filter((item) => item.id !== post.id).slice(0, 3) });
+export async function newsPost(req, res) {
+  const post = await postService.getPublic(req.params.slug);
+  const latest = await postService.latest(4);
+  res.render('public/post.njk', { post, more: latest.filter((item) => item.id !== post.id).slice(0, 3) });
 }
 
-function contactContext(req, values = {}) {
+async function contactContext(req, values = {}) {
   const slug = typeof req.query.animal === 'string' ? req.query.animal : '';
   let linkedAnimal = null;
   if (slug) {
-    try {
-      linkedAnimal = animalService.getPublic(slug);
-    } catch {
-      linkedAnimal = null;
-    }
+    linkedAnimal = await animalService.getPublic(slug).catch(() => null);
+  } else if (values.animal_id) {
+    linkedAnimal = await animalService.findPublicById(toId(values.animal_id));
   }
   return {
     linkedAnimal,
@@ -108,8 +115,8 @@ function contactContext(req, values = {}) {
   };
 }
 
-export function contact(req, res) {
-  res.render('public/contact.njk', { ...contactContext(req), sent: req.query.envoye === '1' });
+export async function contact(req, res) {
+  res.render('public/contact.njk', { ...(await contactContext(req)), sent: req.query.envoye === '1' });
 }
 
 export async function contactSubmit(req, res) {
@@ -121,15 +128,7 @@ export async function contactSubmit(req, res) {
     res.redirect(303, '/contact?envoye=1');
   } catch (error) {
     if (!(error instanceof ValidationError)) throw error;
-    const context = contactContext(req, req.body);
-    if (req.body.animal_id && !context.linkedAnimal) {
-      try {
-        const list = animalService.listPublic();
-        context.linkedAnimal = list.find((item) => item.id === Number(req.body.animal_id)) || null;
-      } catch {
-        context.linkedAnimal = null;
-      }
-    }
+    const context = await contactContext(req, req.body);
     res.status(422).render('public/contact.njk', { ...context, errors: error.details });
   }
 }
@@ -142,10 +141,10 @@ export function robots(req, res) {
   res.type('text/plain').send(`User-agent: *\nDisallow: /admin\nSitemap: ${config.baseUrl}/sitemap.xml\n`);
 }
 
-export function sitemap(req, res) {
+export async function sitemap(req, res) {
   const pages = ['/', '/animaux', '/adopter', '/adoptes', '/agenda', '/actualites', '/aider', '/contact'];
-  const animalsUrls = animalService.listPublic().map((item) => item.url);
-  const postUrls = postService.listPublic({ page: 1 }).posts.map((post) => post.url);
+  const animalsUrls = (await animalService.listPublic()).map((item) => item.url);
+  const postUrls = (await postService.listPublic({ page: 1 })).posts.map((post) => post.url);
   const urls = [...pages, ...animalsUrls, ...postUrls].map((url) => `<url><loc>${config.baseUrl}${url}</loc></url>`).join('');
   res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`);
 }

@@ -9,9 +9,10 @@ The interface is in French. Code, comments and logs are in English.
 
 ## Stack
 
-- Node.js 22.13+ (uses the built-in `node:sqlite` module, no native database driver)
+- Node.js 22+
 - Express 5, Nunjucks templates rendered on the server
-- SQLite database in a single file, uploaded photos on disk (converted to WebP by `sharp`)
+- SQLite through the libSQL client: a local file in development, a [Turso](https://turso.tech) database in production
+- Photos converted to WebP by `sharp`, stored on disk locally or in Vercel Blob in production
 - No front-end framework: plain CSS and a small progressive-enhancement script; every page works without JavaScript
 
 ## Getting started
@@ -37,8 +38,10 @@ If no account exists, opening `/admin` also offers a one-time setup page to crea
 | `SESSION_SECRET` | yes in production | Long random string signing the session cookie |
 | `BASE_URL` | yes in production | Public URL, used in the sitemap, emails and calendar exports |
 | `TRUST_PROXY` | no | Number of reverse proxies in front of the app (default `1`). Set `0` if Node is exposed directly, otherwise rate limits can be bypassed with a forged `X-Forwarded-For` |
-| `DATABASE_PATH` | no | SQLite file (default `./data/refuge.sqlite`) |
-| `UPLOAD_DIR` | no | Photo directory (default `./data/uploads`) |
+| `DATABASE_PATH` | no | Local SQLite file (default `./data/refuge.sqlite`), used when `TURSO_DATABASE_URL` is not set |
+| `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` | in production | Turso database (`libsql://…`) and its token |
+| `UPLOAD_DIR` | no | Local photo directory (default `./data/uploads`), used when `BLOB_READ_WRITE_TOKEN` is not set |
+| `BLOB_READ_WRITE_TOKEN` | in production | Vercel Blob store token (added automatically when a Blob store is connected to the project) |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | no | Outgoing mail server |
 | `NOTIFY_EMAIL` | no | Address notified for each contact message (needs SMTP) |
 
@@ -91,9 +94,24 @@ Text fields accept light formatting: a blank line starts a paragraph, lines star
 - Uploaded files are decoded and re-encoded by `sharp`; anything that is not a readable image is rejected.
 - The session cookie is the only cookie; "coups de cœur" stay in the visitor's browser (localStorage).
 
-## Deployment
+## Deployment (Vercel, free tier)
 
-Any host able to run a long-lived Node.js process with a persistent disk works (small VPS, Render, Railway, Fly.io). Put it behind HTTPS (reverse proxy such as Caddy or Nginx), set `NODE_ENV=production`, `SESSION_SECRET` and `BASE_URL`, and back up the `data/` directory (database and photos) regularly.
+The app runs on Vercel as a single serverless function (`api/index.js`); `public/` is served by Vercel's CDN (`vercel.json`). Data lives outside the function: the database on Turso, photos in Vercel Blob. All three have free tiers. Vercel's free Hobby plan is meant for non-commercial use.
+
+1. **Vercel**: sign in at vercel.com with GitHub, then *Add New → Project* and import this repository. Keep the defaults (no framework, no build command).
+2. **Database**: in the project, *Storage → Create → Turso (Marketplace)*, create a database and connect it to the project. This adds `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` (a custom prefix chosen in the connect dialog is fine). (Alternatively create the database on turso.tech and add both variables by hand.)
+3. **Photos**: *Storage → Create → Blob*, connect it to the project. This adds `BLOB_READ_WRITE_TOKEN`.
+4. **Variables**: *Settings → Environment Variables*, add `SESSION_SECRET` (a long random string, e.g. `openssl rand -base64 48`). `BASE_URL` is optional on Vercel (the production domain is detected); set it if you use a custom domain.
+5. **Redeploy** (*Deployments → Redeploy*) so the function picks up the variables. The schema is created automatically on the first request.
+6. Open `https://<your-project>.vercel.app/admin`: the setup page creates the first administrator account.
+
+Optional, to load the example content into Turso from your machine:
+
+```bash
+TURSO_DATABASE_URL=libsql://… TURSO_AUTH_TOKEN=… npm run seed
+```
+
+Notes: request bodies are limited to about 4.5 MB on Vercel, so the back office shrinks photos in the browser before uploading; the login and contact rate limits are per function instance. For a classic server instead (VPS), run `npm start` behind an HTTPS reverse proxy with the same variables (or the local file and disk defaults) and back up `data/`.
 
 ## Content to replace
 

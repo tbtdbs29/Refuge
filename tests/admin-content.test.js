@@ -44,8 +44,8 @@ const idFromLocation = (res) => Number(/\/(\d+)(?:[?#]|$)/.exec(res.headers.loca
 before(async () => {
   env = await setupTestEnv('content');
   schemas = await import('../src/schemas/index.js');
-  env.services.userService.create(ADMIN);
-  env.services.userService.create(EDITOR);
+  await env.services.userService.create(ADMIN);
+  await env.services.userService.create(EDITOR);
   agent = env.newAgent();
   // Content is managed by editors: the whole file runs with an editor session.
   token = await login(agent, EDITOR.email, EDITOR.password);
@@ -72,7 +72,7 @@ describe('animaux : création et validation', () => {
     const res = await multipart('/admin/animaux', animalFields({ name: 'Rexcreation' }));
     assert.equal(res.status, 303);
     assert.match(res.headers.location, /^\/admin\/animaux\/\d+$/);
-    const animal = animals().getById(idFromLocation(res));
+    const animal = await animals().getById(idFromLocation(res));
     assert.equal(animal.name, 'Rexcreation');
     assert.equal(animal.slug, 'rexcreation');
     assert.equal(animal.ok_cats, 'non');
@@ -83,38 +83,38 @@ describe('animaux : création et validation', () => {
   });
 
   test('deux animaux du même nom reçoivent des slugs distincts', async () => {
-    const first = animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Jumeau' }))));
-    const second = animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Jumeau' }))));
+    const first = await animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Jumeau' }))));
+    const second = await animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Jumeau' }))));
     assert.notEqual(first.slug, second.slug);
     assert.equal((await env.request().get(`/animaux/${first.slug}`)).status, 200);
     assert.equal((await env.request().get(`/animaux/${second.slug}`)).status, 200);
   });
 
   test('un nom accentué donne un slug sans accent', async () => {
-    const animal = animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Éclair Noël' }))));
+    const animal = await animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Éclair Noël' }))));
     assert.equal(animal.slug, 'eclair-noel');
   });
 
   test('une création sans jeton CSRF est refusée (403) et rien n’est créé', async () => {
-    const before = animals().listAdmin({}).length;
+    const before = (await animals().listAdmin({})).length;
     const res = await agent.post('/admin/animaux').field('name', 'SansCsrf').field('species', 'chien');
     assert.equal(res.status, 403);
-    assert.equal(animals().listAdmin({}).length, before);
+    assert.equal((await animals().listAdmin({})).length, before);
   });
 
   test('un nom manquant est refusé (422) avec un message en français', async () => {
-    const before = animals().listAdmin({}).length;
+    const before = (await animals().listAdmin({})).length;
     const res = await multipart('/admin/animaux', animalFields({ name: '' }));
     assert.equal(res.status, 422);
     assert.ok(decode(res.text).includes('Donnez un nom à l’animal'));
-    assert.equal(animals().listAdmin({}).length, before);
+    assert.equal((await animals().listAdmin({})).length, before);
   });
 
   test('une espèce invalide est refusée (422) sans créer de fiche', async () => {
-    const before = animals().listAdmin({}).length;
+    const before = (await animals().listAdmin({})).length;
     const res = await multipart('/admin/animaux', animalFields({ name: 'Licorne', species: 'licorne' }));
     assert.equal(res.status, 422);
-    assert.equal(animals().listAdmin({}).length, before);
+    assert.equal((await animals().listAdmin({})).length, before);
   });
 
   test('une espèce invalide affiche le message "Choisissez une espèce"', async () => {
@@ -153,7 +153,7 @@ describe('animaux : publication, statut et suppression', () => {
 
   before(async () => {
     const res = await multipart('/admin/animaux', animalFields({ name: 'Statutaire', species: 'chat' }));
-    animal = animals().getById(idFromLocation(res));
+    animal = await animals().getById(idFromLocation(res));
   });
 
   test('la mise à jour d’une fiche est visible sur le site', async () => {
@@ -166,7 +166,7 @@ describe('animaux : publication, statut et suppression', () => {
   test('une mise à jour invalide répond 422 et ne modifie rien', async () => {
     const res = await multipart(`/admin/animaux/${animal.id}`, animalFields({ name: '', species: 'chat' }));
     assert.equal(res.status, 422);
-    assert.equal(animals().getById(animal.id).name, 'Statutaire');
+    assert.equal((await animals().getById(animal.id)).name, 'Statutaire');
   });
 
   test('la mise à jour d’une fiche inexistante répond 404', async () => {
@@ -178,7 +178,7 @@ describe('animaux : publication, statut et suppression', () => {
     const fields = animalFields({ name: 'Statutaire', species: 'chat' });
     delete fields.published;
     await multipart(`/admin/animaux/${animal.id}`, fields);
-    assert.equal(animals().getById(animal.id).published, 0);
+    assert.equal((await animals().getById(animal.id)).published, 0);
     assert.equal((await env.request().get(`/animaux/${animal.slug}`)).status, 404);
     assert.ok(!(await env.request().get('/animaux')).text.includes('Statutaire'));
     const preview = await agent.get(`/animaux/${animal.slug}`);
@@ -189,11 +189,11 @@ describe('animaux : publication, statut et suppression', () => {
   });
 
   test('passer le statut à "adopte" renseigne adopted_at et place l’animal dans l’album', async () => {
-    assert.equal(animals().getById(animal.id).adopted_at, null);
+    assert.equal((await animals().getById(animal.id)).adopted_at, null);
     const res = await send(`/admin/animaux/${animal.id}/statut`, { status: 'adopte' });
     assert.equal(res.status, 303);
     assert.equal(res.headers.location, `/admin/animaux/${animal.id}`);
-    const updated = animals().getById(animal.id);
+    const updated = await animals().getById(animal.id);
     assert.equal(updated.status, 'adopte');
     assert.ok(updated.adopted_at, 'adopted_at not set');
     assert.ok((await env.request().get('/adoptes')).text.includes('Statutaire'));
@@ -203,7 +203,7 @@ describe('animaux : publication, statut et suppression', () => {
 
   test('remettre le statut à "disponible" retire l’animal de l’album', async () => {
     await send(`/admin/animaux/${animal.id}/statut`, { status: 'disponible' });
-    assert.equal(animals().getById(animal.id).status, 'disponible');
+    assert.equal((await animals().getById(animal.id)).status, 'disponible');
     assert.ok(!(await env.request().get('/adoptes')).text.includes('Statutaire'));
     assert.ok((await env.request().get('/animaux')).text.includes('Statutaire'));
   });
@@ -212,12 +212,12 @@ describe('animaux : publication, statut et suppression', () => {
     const res = await send(`/admin/animaux/${animal.id}/statut`, { status: 'reserve', back: 'list' });
     assert.equal(res.status, 303);
     assert.equal(res.headers.location, '/admin/animaux');
-    assert.equal(animals().getById(animal.id).status, 'reserve');
+    assert.equal((await animals().getById(animal.id)).status, 'reserve');
   });
 
   test('un statut inconnu est ignoré', async () => {
     await send(`/admin/animaux/${animal.id}/statut`, { status: 'vendu' });
-    assert.equal(animals().getById(animal.id).status, 'reserve');
+    assert.equal((await animals().getById(animal.id)).status, 'reserve');
   });
 
   test('changer le statut d’une fiche inexistante répond 404', async () => {
@@ -226,21 +226,21 @@ describe('animaux : publication, statut et suppression', () => {
   });
 
   test('passer à "adopte" via le formulaire d’édition renseigne aussi adopted_at', async () => {
-    const created = animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Viaformulaire' }))));
+    const created = await animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Viaformulaire' }))));
     const res = await multipart(`/admin/animaux/${created.id}`, animalFields({ name: 'Viaformulaire', status: 'adopte' }));
     assert.equal(res.status, 303);
-    const updated = animals().getById(created.id);
+    const updated = await animals().getById(created.id);
     assert.equal(updated.status, 'adopte');
     assert.ok(updated.adopted_at, 'adopted_at not set when status changes through the edit form');
   });
 
   test('une fiche créée directement avec le statut "adopte" a un adopted_at', async () => {
-    const created = animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Dejaadopte', status: 'adopte' }))));
+    const created = await animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Dejaadopte', status: 'adopte' }))));
     assert.ok(created.adopted_at, 'adopted_at not set on creation with status adopte');
   });
 
   test('la suppression retire la fiche du site et redirige vers la liste', async () => {
-    const created = animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Ephemere' }))));
+    const created = await animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Ephemere' }))));
     const res = await send(`/admin/animaux/${created.id}/supprimer`);
     assert.equal(res.status, 303);
     assert.equal(res.headers.location, '/admin/animaux');
@@ -253,11 +253,11 @@ describe('animaux : publication, statut et suppression', () => {
   });
 
   test('la suppression d’une fiche liée à un message conserve le message', async () => {
-    const created = animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Lie' }))));
+    const created = await animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Lie' }))));
     const data = schemas.validate(schemas.messageSchema, { name: 'Lien Message', email: 'lien@example.fr', body: 'Pour Lie', consent: 'on', animal_id: String(created.id), topic: 'adoption' });
     await env.services.messageService.submit(data);
     assert.equal((await send(`/admin/animaux/${created.id}/supprimer`)).status, 303);
-    const message = env.services.messageService.list('nouveau').find((item) => item.name === 'Lien Message');
+    const message = (await env.services.messageService.list('nouveau')).find((item) => item.name === 'Lien Message');
     assert.ok(message);
     assert.equal(message.animal_id, null);
   });
@@ -268,7 +268,7 @@ describe('animaux : photos', () => {
     const before = uploads().length;
     const res = await multipart('/admin/animaux', animalFields({ name: 'Photogenique' }), [{ field: 'photos', buffer: jpeg, filename: 'rex.jpg', contentType: 'image/jpeg' }]);
     assert.equal(res.status, 303);
-    const animal = animals().getById(idFromLocation(res));
+    const animal = await animals().getById(idFromLocation(res));
     assert.equal(animal.photos.length, 1);
     assert.equal(uploads().length, before + 2, 'expected full + thumb files');
     const page = await env.request().get(`/animaux/${animal.slug}`);
@@ -279,18 +279,18 @@ describe('animaux : photos', () => {
   });
 
   test('un fichier non image déguisé en JPEG est refusé (422) sans créer de fiche', async () => {
-    const before = animals().listAdmin({}).length;
+    const before = (await animals().listAdmin({})).length;
     const res = await multipart('/admin/animaux', animalFields({ name: 'Fauxjpeg' }), [{ field: 'photos', buffer: Buffer.from('ceci n’est pas une image'), filename: 'faux.jpg', contentType: 'image/jpeg' }]);
     assert.equal(res.status, 422);
     assert.ok(decode(res.text).includes('pas une image lisible'));
-    assert.equal(animals().listAdmin({}).length, before, 'animal row created despite invalid photo');
+    assert.equal((await animals().listAdmin({})).length, before, 'animal row created despite invalid photo');
   });
 
   test('un fichier avec un type MIME non image est refusé (422) sans créer de fiche', async () => {
-    const before = animals().listAdmin({}).length;
+    const before = (await animals().listAdmin({})).length;
     const res = await multipart('/admin/animaux', animalFields({ name: 'Textfile' }), [{ field: 'photos', buffer: Buffer.from('hello'), filename: 'note.txt', contentType: 'text/plain' }]);
     assert.equal(res.status, 422);
-    assert.equal(animals().listAdmin({}).length, before);
+    assert.equal((await animals().listAdmin({})).length, before);
   });
 
   test('un fichier non image réaffiche le formulaire avec "Seules les images sont acceptées." et les valeurs saisies', async () => {
@@ -307,31 +307,31 @@ describe('animaux : photos', () => {
   });
 
   test('ajouter une photo à une fiche existante, changer la couverture puis supprimer une photo', async () => {
-    const created = animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Album' }), [{ field: 'photos', buffer: jpeg, filename: 'a.jpg', contentType: 'image/jpeg' }])));
+    const created = await animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Album' }), [{ field: 'photos', buffer: jpeg, filename: 'a.jpg', contentType: 'image/jpeg' }])));
     const second = await jpegBuffer(80, 60);
     const res = await multipart(`/admin/animaux/${created.id}`, animalFields({ name: 'Album' }), [{ field: 'photos', buffer: second, filename: 'b.jpg', contentType: 'image/jpeg' }]);
     assert.equal(res.status, 303);
-    const withTwo = animals().getById(created.id);
+    const withTwo = await animals().getById(created.id);
     assert.equal(withTwo.photos.length, 2);
     const [first, other] = withTwo.photos;
 
     const cover = await send(`/admin/animaux/${created.id}/photos/${other.id}/couverture`);
     assert.equal(cover.status, 303);
-    assert.equal(animals().getById(created.id).photos[0].id, other.id);
+    assert.equal((await animals().getById(created.id)).photos[0].id, other.id);
 
     const files = uploads();
     const remove = await send(`/admin/animaux/${created.id}/photos/${first.id}/supprimer`);
     assert.equal(remove.status, 303);
-    const after = animals().getById(created.id);
+    const after = await animals().getById(created.id);
     assert.deepEqual(after.photos.map((photo) => photo.id), [other.id]);
     assert.equal(uploads().length, files.length - 2, 'photo files not removed from disk');
   });
 
   test('une photo invalide lors d’une mise à jour est refusée (422) et ne modifie pas la fiche', async () => {
-    const created = animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Intacte' }))));
+    const created = await animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Intacte' }))));
     const res = await multipart(`/admin/animaux/${created.id}`, animalFields({ name: 'Intacte modifiee' }), [{ field: 'photos', buffer: Buffer.from('garbage'), filename: 'x.jpg', contentType: 'image/jpeg' }]);
     assert.equal(res.status, 422);
-    assert.equal(animals().getById(created.id).name, 'Intacte');
+    assert.equal((await animals().getById(created.id)).name, 'Intacte');
   });
 
   test('ajouter une photo à une fiche inexistante répond 404 sans laisser de fichier', async () => {
@@ -342,23 +342,23 @@ describe('animaux : photos', () => {
   });
 
   test('on ne peut pas supprimer la photo d’un autre animal via l’URL d’une autre fiche', async () => {
-    const owner = animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Proprietaire' }), [{ field: 'photos', buffer: jpeg, filename: 'p.jpg', contentType: 'image/jpeg' }])));
-    const other = animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Voisin' }))));
+    const owner = await animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Proprietaire' }), [{ field: 'photos', buffer: jpeg, filename: 'p.jpg', contentType: 'image/jpeg' }])));
+    const other = await animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Voisin' }))));
     const photoId = owner.photos[0].id;
     await send(`/admin/animaux/${other.id}/photos/${photoId}/supprimer`);
-    assert.equal(animals().getById(owner.id).photos.length, 1, 'photo of another animal was deleted');
+    assert.equal((await animals().getById(owner.id)).photos.length, 1, 'photo of another animal was deleted');
   });
 
   test('on ne peut pas déplacer la photo d’un autre animal comme couverture d’une autre fiche', async () => {
-    const owner = animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Proprio2' }), [{ field: 'photos', buffer: jpeg, filename: 'p.jpg', contentType: 'image/jpeg' }])));
-    const other = animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Voisin2' }))));
+    const owner = await animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Proprio2' }), [{ field: 'photos', buffer: jpeg, filename: 'p.jpg', contentType: 'image/jpeg' }])));
+    const other = await animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Voisin2' }))));
     await send(`/admin/animaux/${other.id}/photos/${owner.photos[0].id}/couverture`);
-    assert.equal(animals().getById(owner.id).photos.length, 1);
-    assert.equal(animals().getById(other.id).photos.length, 0);
+    assert.equal((await animals().getById(owner.id)).photos.length, 1);
+    assert.equal((await animals().getById(other.id)).photos.length, 0);
   });
 
   test('supprimer une fiche supprime aussi ses fichiers photo', async () => {
-    const created = animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Avecphoto' }), [{ field: 'photos', buffer: jpeg, filename: 'a.jpg', contentType: 'image/jpeg' }])));
+    const created = await animals().getById(idFromLocation(await multipart('/admin/animaux', animalFields({ name: 'Avecphoto' }), [{ field: 'photos', buffer: jpeg, filename: 'a.jpg', contentType: 'image/jpeg' }])));
     const base = path.basename(created.photos[0].url, '.webp');
     assert.ok(uploads().includes(`${base}.webp`));
     await send(`/admin/animaux/${created.id}/supprimer`);
@@ -369,13 +369,13 @@ describe('animaux : photos', () => {
 
 describe('agenda : événements', () => {
   const day = (offset) => wallClockInDays(env.format, offset).slice(0, 10);
-  const eventsNamed = (title) => env.services.eventService.upcoming(200, { publicOnly: false }).filter((event) => event.title === title);
+  const eventsNamed = async (title) => (await env.services.eventService.upcoming(200, { publicOnly: false })).filter((event) => event.title === title);
 
   test('crée un événement public visible sur l’agenda public', async () => {
     const res = await send('/admin/agenda', { title: 'Kermesse admin', category: 'kermesse', start_date: day(20), start_time: '10:00', end_time: '18:00', location: 'Refuge', visibility: 'public' });
     assert.equal(res.status, 303);
     assert.equal(res.headers.location, `/admin/agenda?mois=${day(20).slice(0, 7)}`);
-    const [event] = eventsNamed('Kermesse admin');
+    const [event] = await eventsNamed('Kermesse admin');
     assert.equal(event.starts_at, `${day(20)}T10:00`);
     assert.equal(event.ends_at, `${day(20)}T18:00`);
     assert.equal((await env.request().get(`/agenda/${event.id}`)).status, 200);
@@ -384,7 +384,7 @@ describe('agenda : événements', () => {
 
   test('un événement interne est visible dans l’agenda admin mais pas publiquement', async () => {
     await send('/admin/agenda', { title: 'Soiree interne', category: 'benevoles', start_date: day(21), start_time: '19:00', visibility: 'interne' });
-    const [event] = eventsNamed('Soiree interne');
+    const [event] = await eventsNamed('Soiree interne');
     assert.equal(event.visibility, 'interne');
     assert.ok((await agent.get(`/admin/agenda?mois=${day(21).slice(0, 7)}`)).text.includes('Soiree interne'));
     assert.equal((await env.request().get(`/agenda/${event.id}`)).status, 404);
@@ -395,14 +395,14 @@ describe('agenda : événements', () => {
 
   test('un événement sur la journée entière s’affiche "Toute la journée"', async () => {
     await send('/admin/agenda', { title: 'Fermeture exceptionnelle', category: 'fermeture', start_date: day(22), all_day: 'on', visibility: 'public' });
-    const [event] = eventsNamed('Fermeture exceptionnelle');
+    const [event] = await eventsNamed('Fermeture exceptionnelle');
     assert.equal(event.all_day, 1);
     assert.ok((await env.request().get(`/agenda/${event.id}`)).text.includes('Toute la journée'));
   });
 
   test('passer un événement public en interne le retire du site', async () => {
     await send('/admin/agenda', { title: 'Bientot interne', category: 'autre', start_date: day(23), start_time: '14:00', visibility: 'public' });
-    const [event] = eventsNamed('Bientot interne');
+    const [event] = await eventsNamed('Bientot interne');
     assert.equal((await env.request().get(`/agenda/${event.id}`)).status, 200);
     const res = await send(`/admin/agenda/${event.id}`, { title: 'Bientot interne', category: 'autre', start_date: day(23), start_time: '14:00', visibility: 'interne' });
     assert.equal(res.status, 303);
@@ -410,7 +410,7 @@ describe('agenda : événements', () => {
   });
 
   test('le formulaire d’édition se pré-remplit avec les valeurs de l’événement', async () => {
-    const [event] = eventsNamed('Kermesse admin');
+    const [event] = await eventsNamed('Kermesse admin');
     const res = await agent.get(`/admin/agenda/${event.id}`);
     assert.equal(res.status, 200);
     assert.ok(res.text.includes('Kermesse admin'));
@@ -430,7 +430,7 @@ describe('agenda : événements', () => {
       const res = await send('/admin/agenda', { title: 'Invalide', category: 'autre', start_date: '2030-03-10', start_time: '10:00', visibility: 'public', ...override });
       assert.equal(res.status, 422);
       assert.ok(decode(res.text).includes(message), `missing "${message}"`);
-      assert.equal(eventsNamed('Invalide').length, 0);
+      assert.equal((await eventsNamed('Invalide')).length, 0);
     });
   }
 
@@ -441,7 +441,7 @@ describe('agenda : événements', () => {
 
   test('supprimer un événement le retire du site', async () => {
     await send('/admin/agenda', { title: 'A supprimer', category: 'autre', start_date: day(25), start_time: '10:00', visibility: 'public' });
-    const [event] = eventsNamed('A supprimer');
+    const [event] = await eventsNamed('A supprimer');
     const res = await send(`/admin/agenda/${event.id}/supprimer`);
     assert.equal(res.status, 303);
     assert.equal((await env.request().get(`/agenda/${event.id}`)).status, 404);
@@ -461,13 +461,13 @@ describe('agenda : événements', () => {
 
 describe('actualités : publication et programmation', () => {
   const postFields = (overrides = {}) => ({ title: 'Article', category: 'vie', excerpt: '', body: 'Corps de l’article', published: 'on', published_at: wallClockInDays(env.format, -1), ...overrides });
-  const postByTitle = (title) => env.services.postService.listAdmin().find((post) => post.title === title);
+  const postByTitle = async (title) => (await env.services.postService.listAdmin()).find((post) => post.title === title);
 
   test('un article publié avec une date passée est visible immédiatement', async () => {
     const res = await multipart('/admin/actualites', postFields({ title: 'Publie maintenant', body: 'Bonne nouvelle' }));
     assert.equal(res.status, 303);
     assert.match(res.headers.location, /^\/admin\/actualites\/\d+$/);
-    const post = postByTitle('Publie maintenant');
+    const post = await postByTitle('Publie maintenant');
     const page = await env.request().get(`/actualites/${post.slug}`);
     assert.equal(page.status, 200);
     assert.ok(page.text.includes('Bonne nouvelle'));
@@ -475,7 +475,7 @@ describe('actualités : publication et programmation', () => {
 
   test('un article programmé dans le futur est 404 tant que la date n’est pas atteinte', async () => {
     await multipart('/admin/actualites', postFields({ title: 'Programme', published_at: wallClockInDays(env.format, 2) }));
-    const post = postByTitle('Programme');
+    const post = await postByTitle('Programme');
     assert.equal((await env.request().get(`/actualites/${post.slug}`)).status, 404);
     assert.ok(!(await env.request().get('/actualites')).text.includes('Programme'));
     const res = await multipart(`/admin/actualites/${post.id}`, postFields({ title: 'Programme', published_at: wallClockInDays(env.format, -1) }));
@@ -486,14 +486,14 @@ describe('actualités : publication et programmation', () => {
   test('un article programmé dans quelques minutes n’est pas encore visible (heure de Paris)', async () => {
     const soon = env.format.nowWallClock(new Date(Date.now() + 5 * 60 * 1000));
     await multipart('/admin/actualites', postFields({ title: 'Dans cinq minutes', published_at: soon }));
-    const post = postByTitle('Dans cinq minutes');
+    const post = await postByTitle('Dans cinq minutes');
     assert.equal((await env.request().get(`/actualites/${post.slug}`)).status, 404);
   });
 
   test('un article publié il y a une minute (heure de Paris) est visible', async () => {
     const justNow = env.format.nowWallClock(new Date(Date.now() - 60 * 1000));
     await multipart('/admin/actualites', postFields({ title: 'Il y a une minute', published_at: justNow }));
-    const post = postByTitle('Il y a une minute');
+    const post = await postByTitle('Il y a une minute');
     assert.equal((await env.request().get(`/actualites/${post.slug}`)).status, 200);
   });
 
@@ -501,7 +501,7 @@ describe('actualités : publication et programmation', () => {
     const fields = postFields({ title: 'Brouillon admin' });
     delete fields.published;
     await multipart('/admin/actualites', fields);
-    const post = postByTitle('Brouillon admin');
+    const post = await postByTitle('Brouillon admin');
     assert.equal(post.published, 0);
     assert.equal((await env.request().get(`/actualites/${post.slug}`)).status, 404);
     await multipart(`/admin/actualites/${post.id}`, postFields({ title: 'Brouillon admin' }));
@@ -510,7 +510,7 @@ describe('actualités : publication et programmation', () => {
 
   test('dépublier un article le rend introuvable', async () => {
     await multipart('/admin/actualites', postFields({ title: 'A depublier' }));
-    const post = postByTitle('A depublier');
+    const post = await postByTitle('A depublier');
     const fields = postFields({ title: 'A depublier' });
     delete fields.published;
     await multipart(`/admin/actualites/${post.id}`, fields);
@@ -525,24 +525,24 @@ describe('actualités : publication et programmation', () => {
   ];
   for (const [label, override, message] of invalid) {
     test(`refuse un article avec ${label} (422)`, async () => {
-      const before = env.services.postService.listAdmin().length;
+      const before = (await env.services.postService.listAdmin()).length;
       const res = await multipart('/admin/actualites', postFields({ title: 'Invalide', ...override }));
       assert.equal(res.status, 422);
       assert.ok(decode(res.text).includes(message), `missing "${message}"`);
-      assert.equal(env.services.postService.listAdmin().length, before);
+      assert.equal((await env.services.postService.listAdmin()).length, before);
     });
   }
 
   test('deux articles de même titre ont des slugs distincts', async () => {
     await multipart('/admin/actualites', postFields({ title: 'Titre double' }));
     await multipart('/admin/actualites', postFields({ title: 'Titre double' }));
-    const slugs = env.services.postService.listAdmin().filter((post) => post.title === 'Titre double').map((post) => post.slug);
+    const slugs = (await env.services.postService.listAdmin()).filter((post) => post.title === 'Titre double').map((post) => post.slug);
     assert.equal(new Set(slugs).size, 2);
   });
 
   test('le contenu d’un article est échappé', async () => {
     await multipart('/admin/actualites', postFields({ title: 'Article XSS', body: '<script>alert(1)</script>' }));
-    const page = await env.request().get(`/actualites/${postByTitle('Article XSS').slug}`);
+    const page = await env.request().get(`/actualites/${(await postByTitle('Article XSS')).slug}`);
     assert.ok(!page.text.includes('<script>alert(1)</script>'));
     assert.ok(page.text.includes('&lt;script&gt;'));
   });
@@ -550,26 +550,26 @@ describe('actualités : publication et programmation', () => {
   test('une image de couverture valide est enregistrée puis peut être retirée', async () => {
     const res = await multipart('/admin/actualites', postFields({ title: 'Avec couverture' }), [{ field: 'cover', buffer: jpeg, filename: 'c.jpg', contentType: 'image/jpeg' }]);
     assert.equal(res.status, 303);
-    const post = env.services.postService.getById(idFromLocation(res));
+    const post = await env.services.postService.getById(idFromLocation(res));
     assert.ok(post.cover, 'cover not saved');
     assert.ok(uploads().includes(`${post.cover}.webp`));
     const page = await env.request().get(`/actualites/${post.slug}`);
     assert.ok(page.text.includes(`/uploads/${post.cover}`));
     await multipart(`/admin/actualites/${post.id}`, postFields({ title: 'Avec couverture', remove_cover: 'on' }));
-    assert.equal(env.services.postService.getById(post.id).cover, null);
+    assert.equal((await env.services.postService.getById(post.id)).cover, null);
     assert.ok(!uploads().includes(`${post.cover}.webp`), 'cover file left on disk');
   });
 
   test('une couverture non image est refusée (422)', async () => {
-    const before = env.services.postService.listAdmin().length;
+    const before = (await env.services.postService.listAdmin()).length;
     const res = await multipart('/admin/actualites', postFields({ title: 'Couverture invalide' }), [{ field: 'cover', buffer: Buffer.from('nope'), filename: 'c.jpg', contentType: 'image/jpeg' }]);
     assert.equal(res.status, 422);
-    assert.equal(env.services.postService.listAdmin().length, before);
+    assert.equal((await env.services.postService.listAdmin()).length, before);
   });
 
   test('supprimer un article le rend introuvable', async () => {
     await multipart('/admin/actualites', postFields({ title: 'Article a supprimer' }));
-    const post = postByTitle('Article a supprimer');
+    const post = await postByTitle('Article a supprimer');
     const res = await send(`/admin/actualites/${post.id}/supprimer`);
     assert.equal(res.status, 303);
     assert.equal(res.headers.location, '/admin/actualites');
@@ -697,9 +697,9 @@ describe('messages', () => {
   const submit = async (fields) => {
     const data = schemas.validate(schemas.messageSchema, { topic: 'adoption', email: 'visiteur@example.fr', consent: 'on', body: 'Bonjour', ...fields });
     await env.services.messageService.submit(data);
-    return env.services.messageService.list('nouveau').find((message) => message.name === fields.name);
+    return (await env.services.messageService.list('nouveau')).find((message) => message.name === fields.name);
   };
-  const statusOf = (id) => env.services.messageService.getById(id).status;
+  const statusOf = async (id) => (await env.services.messageService.getById(id)).status;
 
   test('un message reçu apparaît dans la boîte "nouveau" et s’affiche échappé', async () => {
     const message = await submit({ name: 'Visiteur Un', body: '<script>alert(1)</script>Je veux adopter' });
@@ -725,7 +725,7 @@ describe('messages', () => {
     const res = await send(`/admin/messages/${message.id}/statut`, { status: 'traite' });
     assert.equal(res.status, 303);
     assert.equal(res.headers.location, '/admin/messages');
-    assert.equal(statusOf(message.id), 'traite');
+    assert.equal(await statusOf(message.id), 'traite');
     assert.ok(!(await agent.get('/admin/messages')).text.includes('Visiteur Traite'));
     assert.ok((await agent.get('/admin/messages?statut=traite')).text.includes('Visiteur Traite'));
   });
@@ -733,19 +733,19 @@ describe('messages', () => {
   test('archiver puis remettre un message dans les nouveaux', async () => {
     const message = await submit({ name: 'Visiteur Archive' });
     await send(`/admin/messages/${message.id}/statut`, { status: 'archive' });
-    assert.equal(statusOf(message.id), 'archive');
+    assert.equal(await statusOf(message.id), 'archive');
     assert.ok((await agent.get('/admin/messages?statut=archive')).text.includes('Visiteur Archive'));
     const res = await send(`/admin/messages/${message.id}/statut`, { status: 'nouveau' });
     assert.equal(res.status, 303);
     assert.equal(res.headers.location, `/admin/messages/${message.id}`);
-    assert.equal(statusOf(message.id), 'nouveau');
+    assert.equal(await statusOf(message.id), 'nouveau');
   });
 
   test('un statut de message inconnu est refusé (422) et le statut ne change pas', async () => {
     const message = await submit({ name: 'Visiteur Invalide' });
     const res = await send(`/admin/messages/${message.id}/statut`, { status: 'supprime' });
     assert.equal(res.status, 422);
-    assert.equal(statusOf(message.id), 'nouveau');
+    assert.equal(await statusOf(message.id), 'nouveau');
   });
 
   test('supprimer un message le rend introuvable', async () => {

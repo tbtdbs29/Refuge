@@ -1,9 +1,9 @@
 import { userService } from '../services/userService.js';
 import { ForbiddenError } from '../utils/errors.js';
 
-export function loadUser(req, res, next) {
+export async function loadUser(req, res, next) {
   const id = req.session?.userId;
-  req.user = id ? userService.findById(id) : null;
+  req.user = id ? (await userService.findById(id)) || null : null;
   if (id && !req.user) req.session.userId = null;
   res.locals.currentUser = req.user;
   next();

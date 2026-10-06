@@ -16,6 +16,16 @@ function loadDotEnv() {
 
 loadDotEnv();
 
+// Vercel storage integrations may prefix variable names (e.g. STORAGE_TURSO_DATABASE_URL).
+function envBySuffix(suffix) {
+  if (process.env[suffix]) return { name: suffix, value: process.env[suffix] };
+  const name = Object.keys(process.env).find((key) => key.endsWith(`_${suffix}`) && process.env[key]);
+  return name ? { name, value: process.env[name] } : { name: '', value: '' };
+}
+
+const turso = envBySuffix('TURSO_DATABASE_URL');
+const tursoToken = turso.name ? process.env[turso.name.replace(/TURSO_DATABASE_URL$/, 'TURSO_AUTH_TOKEN')] || '' : '';
+
 const env = process.env.NODE_ENV || 'development';
 const isProduction = env === 'production';
 
@@ -33,10 +43,18 @@ export const config = {
   // Number of reverse proxies in front of the app. The client IP (used by rate limits) is read
   // from X-Forwarded-For only through that many hops; use 0 when the app is exposed directly.
   trustProxy: process.env.TRUST_PROXY === undefined ? 1 : Number(process.env.TRUST_PROXY) || 0,
-  baseUrl: (process.env.BASE_URL || 'http://localhost:3000').replace(/\/$/, ''),
+  // On Vercel the production domain is known even when BASE_URL is not set.
+  baseUrl: (
+    process.env.BASE_URL ||
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'http://localhost:3000')
+  ).replace(/\/$/, ''),
   sessionSecret,
-  databasePath: path.resolve(ROOT, process.env.DATABASE_PATH || './data/refuge.sqlite'),
+  // Turso in production (TURSO_DATABASE_URL + TURSO_AUTH_TOKEN), a local SQLite file otherwise.
+  databaseUrl: turso.value || `file:${path.resolve(ROOT, process.env.DATABASE_PATH || './data/refuge.sqlite')}`,
+  databaseAuthToken: tursoToken,
   uploadDir: path.resolve(ROOT, process.env.UPLOAD_DIR || './data/uploads'),
+  // Vercel Blob stores photos in production; without a token they are written to uploadDir.
+  blobToken: envBySuffix('BLOB_READ_WRITE_TOKEN').value,
   maxUploadBytes: 12 * 1024 * 1024,
   smtp: {
     host: process.env.SMTP_HOST || '',

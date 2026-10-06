@@ -69,6 +69,21 @@ describe('uniqueSlug', () => {
   });
 });
 
+describe('findUniqueSlug (asynchrone)', () => {
+  test('renvoie le slug de base quand il est libre', async () => {
+    assert.equal(await slug.findUniqueSlug('Éclair', async () => false), 'eclair');
+  });
+
+  test('ajoute -2, -3... tant que le prédicat asynchrone indique que le slug existe', async () => {
+    const taken = new Set(['rex', 'rex-2']);
+    assert.equal(await slug.findUniqueSlug('Rex', async (candidate) => taken.has(candidate)), 'rex-3');
+  });
+
+  test('propage l’erreur du prédicat asynchrone', async () => {
+    await assert.rejects(slug.findUniqueSlug('Rex', async () => { throw new Error('db down'); }), /db down/);
+  });
+});
+
 describe('password', () => {
   test('hashPassword produit un hash scrypt qui ne contient pas le mot de passe', () => {
     const hash = password.hashPassword('motdepasse-secret');
@@ -219,8 +234,8 @@ describe('dates', () => {
 });
 
 describe('eventService.month', () => {
-  test('octobre 2026 : semaines du lundi, 3 cases vides avant le jeudi 1er, 5 semaines', () => {
-    const month = eventService.month(2026, 10);
+  test('octobre 2026 : semaines du lundi, 3 cases vides avant le jeudi 1er, 5 semaines', async () => {
+    const month = await eventService.month(2026, 10);
     assert.equal(month.year, 2026);
     assert.equal(month.month, 10);
     assert.equal(month.label, 'Octobre 2026');
@@ -234,71 +249,71 @@ describe('eventService.month', () => {
     assert.equal(days.at(-1).key, '2026-10-31');
   });
 
-  test('février 2027 commence un lundi et tient en exactement 4 semaines', () => {
-    const month = eventService.month(2027, 2);
+  test('février 2027 commence un lundi et tient en exactement 4 semaines', async () => {
+    const month = await eventService.month(2027, 2);
     assert.equal(month.weeks.length, 4);
     assert.equal(month.weeks[0][0].key, '2027-02-01');
     assert.equal(month.weeks[3][6].key, '2027-02-28');
   });
 
-  test('février d’une année bissextile compte 29 jours', () => {
-    const days = eventService.month(2028, 2).weeks.flat().filter(Boolean);
+  test('février d’une année bissextile compte 29 jours', async () => {
+    const days = (await eventService.month(2028, 2)).weeks.flat().filter(Boolean);
     assert.equal(days.length, 29);
   });
 
-  test('mois précédent/suivant passent correctement l’année', () => {
-    const december = eventService.month(2026, 12);
+  test('mois précédent/suivant passent correctement l’année', async () => {
+    const december = await eventService.month(2026, 12);
     assert.deepEqual(december.next, { year: 2027, month: 1 });
     assert.deepEqual(december.prev, { year: 2026, month: 11 });
-    const january = eventService.month(2027, 1);
+    const january = await eventService.month(2027, 1);
     assert.deepEqual(january.prev, { year: 2026, month: 12 });
   });
 
-  test('un mois ou une année hors limites retombe sur le mois courant', () => {
+  test('un mois ou une année hors limites retombe sur le mois courant', async () => {
     const current = format.nowWallClock();
-    const month = eventService.month(2026, 13);
+    const month = await eventService.month(2026, 13);
     assert.equal(month.month, Number(current.slice(5, 7)));
-    const year = eventService.month(1500, 3);
+    const year = await eventService.month(1500, 3);
     assert.equal(year.year, Number(current.slice(0, 4)));
-    const none = eventService.month();
+    const none = await eventService.month();
     assert.equal(none.year, Number(current.slice(0, 4)));
     assert.equal(none.month, Number(current.slice(5, 7)));
   });
 
-  test('un événement est rangé dans la case de son jour', () => {
-    eventService.create({ title: 'Kermesse unit', description: '', location: '', category: 'kermesse', all_day: 0, visibility: 'public', starts_at: '2030-05-14T10:00', ends_at: '2030-05-14T17:00' });
-    const month = eventService.month(2030, 5);
+  test('un événement est rangé dans la case de son jour', async () => {
+    await eventService.create({ title: 'Kermesse unit', description: '', location: '', category: 'kermesse', all_day: 0, visibility: 'public', starts_at: '2030-05-14T10:00', ends_at: '2030-05-14T17:00' });
+    const month = await eventService.month(2030, 5);
     const cell = month.weeks.flat().find((item) => item?.key === '2030-05-14');
     assert.deepEqual(cell.events.map((event) => event.title), ['Kermesse unit']);
     const other = month.weeks.flat().find((item) => item?.key === '2030-05-15');
     assert.equal(other.events.length, 0);
   });
 
-  test('un événement sur plusieurs jours apparaît sur chacun de ses jours', () => {
-    eventService.create({ title: 'Collecte 3 jours', description: '', location: '', category: 'collecte', all_day: 1, visibility: 'public', starts_at: '2030-06-10T00:00', ends_at: '2030-06-12T23:59' });
-    const cells = eventService.month(2030, 6).weeks.flat().filter(Boolean);
+  test('un événement sur plusieurs jours apparaît sur chacun de ses jours', async () => {
+    await eventService.create({ title: 'Collecte 3 jours', description: '', location: '', category: 'collecte', all_day: 1, visibility: 'public', starts_at: '2030-06-10T00:00', ends_at: '2030-06-12T23:59' });
+    const cells = (await eventService.month(2030, 6)).weeks.flat().filter(Boolean);
     const withEvent = cells.filter((cell) => cell.events.some((event) => event.title === 'Collecte 3 jours')).map((cell) => cell.key);
     assert.deepEqual(withEvent, ['2030-06-10', '2030-06-11', '2030-06-12']);
   });
 
-  test('un événement commencé le mois précédent apparaît sur les premiers jours du mois suivant', () => {
-    eventService.create({ title: 'À cheval sur deux mois', description: '', location: '', category: 'autre', all_day: 1, visibility: 'public', starts_at: '2030-07-30T00:00', ends_at: '2030-08-02T23:59' });
-    const cells = eventService.month(2030, 8).weeks.flat().filter(Boolean);
+  test('un événement commencé le mois précédent apparaît sur les premiers jours du mois suivant', async () => {
+    await eventService.create({ title: 'À cheval sur deux mois', description: '', location: '', category: 'autre', all_day: 1, visibility: 'public', starts_at: '2030-07-30T00:00', ends_at: '2030-08-02T23:59' });
+    const cells = (await eventService.month(2030, 8)).weeks.flat().filter(Boolean);
     const withEvent = cells.filter((cell) => cell.events.some((event) => event.title === 'À cheval sur deux mois')).map((cell) => cell.key);
     assert.deepEqual(withEvent, ['2030-08-01', '2030-08-02']);
   });
 
-  test('publicOnly exclut les événements internes, la vue complète les inclut', () => {
-    eventService.create({ title: 'Réunion interne', description: '', location: '', category: 'benevoles', all_day: 0, visibility: 'interne', starts_at: '2030-09-03T19:00', ends_at: null });
-    assert.equal(eventService.month(2030, 9, { publicOnly: true }).events.length, 0);
-    assert.equal(eventService.month(2030, 9).events.length, 1);
+  test('publicOnly exclut les événements internes, la vue complète les inclut', async () => {
+    await eventService.create({ title: 'Réunion interne', description: '', location: '', category: 'benevoles', all_day: 0, visibility: 'interne', starts_at: '2030-09-03T19:00', ends_at: null });
+    assert.equal((await eventService.month(2030, 9, { publicOnly: true })).events.length, 0);
+    assert.equal((await eventService.month(2030, 9)).events.length, 1);
   });
 });
 
 describe('eventService.toIcs', () => {
-  test('produit un VCALENDAR avec fins de ligne CRLF et échappe , ; et retours à la ligne', () => {
-    const id = eventService.create({ title: 'Kermesse, tombola; buvette', description: 'Ligne 1\nLigne 2', location: 'Refuge', category: 'kermesse', all_day: 0, visibility: 'public', starts_at: '2031-06-07T10:00', ends_at: '2031-06-07T17:30' });
-    const ics = eventService.toIcs([eventService.getById(id)]);
+  test('produit un VCALENDAR avec fins de ligne CRLF et échappe , ; et retours à la ligne', async () => {
+    const id = await eventService.create({ title: 'Kermesse, tombola; buvette', description: 'Ligne 1\nLigne 2', location: 'Refuge', category: 'kermesse', all_day: 0, visibility: 'public', starts_at: '2031-06-07T10:00', ends_at: '2031-06-07T17:30' });
+    const ics = eventService.toIcs([await eventService.getById(id)]);
     assert.ok(ics.startsWith('BEGIN:VCALENDAR\r\n'));
     assert.ok(ics.endsWith('END:VCALENDAR\r\n'));
     assert.ok(!/[^\r]\n/.test(ics), 'bare LF found');
@@ -309,9 +324,9 @@ describe('eventService.toIcs', () => {
     assert.ok(ics.includes(`UID:event-${id}@refuge.test`));
   });
 
-  test('un événement sur la journée entière a un DTEND exclusif au lendemain', () => {
-    const id = eventService.create({ title: 'Fermeture', description: '', location: '', category: 'fermeture', all_day: 1, visibility: 'public', starts_at: '2031-12-31T00:00', ends_at: '2031-12-31T23:59' });
-    const ics = eventService.toIcs([eventService.getById(id)]);
+  test('un événement sur la journée entière a un DTEND exclusif au lendemain', async () => {
+    const id = await eventService.create({ title: 'Fermeture', description: '', location: '', category: 'fermeture', all_day: 1, visibility: 'public', starts_at: '2031-12-31T00:00', ends_at: '2031-12-31T23:59' });
+    const ics = eventService.toIcs([await eventService.getById(id)]);
     assert.ok(ics.includes('DTSTART;VALUE=DATE:20311231'));
     assert.ok(ics.includes('DTEND;VALUE=DATE:20320101'));
   });

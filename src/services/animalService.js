@@ -3,7 +3,7 @@ import { transaction } from '../db/index.js';
 import { animalRepository } from '../repositories/animalRepository.js';
 import { ageFromBirthDate, ageInYears, excerpt, textToHtml } from '../utils/format.js';
 import { NotFoundError } from '../utils/errors.js';
-import { uniqueSlug } from '../utils/slug.js';
+import { findUniqueSlug } from '../utils/slug.js';
 import { deleteImage, imageUrl, saveImage } from './imageService.js';
 import { settingsService } from './settingsService.js';
 import { logger } from '../utils/logger.js';
@@ -68,9 +68,8 @@ function feeKey(animal) {
   return years >= seniorFrom ? 'senior' : 'adulte';
 }
 
-function feeFor(animal) {
+function feeFor(animal, fees) {
   if (animal.fee_label) return { price: animal.fee_label, label: '' };
-  const { fees } = settingsService.get();
   const table = animal.species === 'chien' ? fees.dogs : animal.species === 'chat' ? fees.cats : null;
   if (!table) return null;
   const row = table.find((item) => item.key === feeKey(animal));
@@ -90,7 +89,7 @@ function captionFor(animal, age) {
   return cells;
 }
 
-function decorate(animal, photos = []) {
+function decorate(animal, photos = [], fees) {
   const age = animal.age_label || ageFromBirthDate(animal.birth_date);
   return {
     ...animal,
@@ -106,7 +105,7 @@ function decorate(animal, photos = []) {
     cover: photos[0] ? { url: imageUrl(photos[0].filename), thumb: imageUrl(photos[0].filename, 'thumb') } : null,
     summary: animal.tagline || excerpt(animal.description, 120),
     descriptionHtml: textToHtml(animal.description),
-    fee: feeFor(animal),
+    fee: feeFor(animal, fees),
     housingLabel: HOUSING[animal.housing],
     inFoster: Boolean(animal.foster_note),
     figure: figureFor(animal),
@@ -114,27 +113,33 @@ function decorate(animal, photos = []) {
   };
 }
 
-function decorateMany(animals) {
-  const photos = animalRepository.photosFor(animals.map((animal) => animal.id));
-  const byAnimal = Map.groupBy(photos, (photo) => photo.animal_id);
-  return animals.map((animal) => decorate(animal, byAnimal.get(animal.id) || []));
+async function decorateOne(animal) {
+  const [photos, settings] = await Promise.all([animalRepository.photos(animal.id), settingsService.get()]);
+  return decorate(animal, photos, settings.fees);
 }
+
+async function decorateMany(animalsPromise) {
+  const animals = await animalsPromise;
+  const [photos, settings] = await Promise.all([animalRepository.photosFor(animals.map((animal) => animal.id)), settingsService.get()]);
+  const byAnimal = Map.groupBy(photos, (photo) => photo.animal_id);
+  return animals.map((animal) => decorate(animal, byAnimal.get(animal.id) || [], settings.fees));
+}
+
+const today = () => new Date().toISOString().slice(0, 10);
 
 export const animalService = {
   PUBLIC_STATUSES,
 
   listPublic(filters = {}) {
-    return decorateMany(
-      animalRepository.list({ ...filters, publishedOnly: true, statuses: PUBLIC_STATUSES, order: filters.order || 'urgent' }),
-    );
+    return decorateMany(animalRepository.list({ ...filters, publishedOnly: true, statuses: PUBLIC_STATUSES, order: filters.order || 'urgent' }));
   },
 
-  featured(limit = 6) {
-    const featured = animalRepository.list({ publishedOnly: true, statuses: PUBLIC_STATUSES, featured: true, order: 'urgent', limit });
+  async featured(limit = 6) {
+    const featured = await animalRepository.list({ publishedOnly: true, statuses: PUBLIC_STATUSES, featured: true, order: 'urgent', limit });
     if (featured.length >= 3) return decorateMany(featured);
-    const extra = animalRepository
-      .list({ publishedOnly: true, statuses: PUBLIC_STATUSES, order: 'urgent', limit: limit * 2 })
-      .filter((animal) => !featured.some((item) => item.id === animal.id));
+    const extra = (await animalRepository.list({ publishedOnly: true, statuses: PUBLIC_STATUSES, order: 'urgent', limit: limit * 2 })).filter(
+      (animal) => !featured.some((item) => item.id === animal.id),
+    );
     return decorateMany([...featured, ...extra].slice(0, limit));
   },
 
@@ -150,24 +155,26 @@ export const animalService = {
     return animalRepository.count({ publishedOnly: true, statuses: ['adopte'] });
   },
 
-  countsBySpecies() {
-    const rows = animalRepository.countBySpecies(PUBLIC_STATUSES);
+  async countsBySpecies() {
+    const rows = await animalRepository.countBySpecies(PUBLIC_STATUSES);
     return Object.fromEntries(Object.keys(SPECIES).map((species) => [species, rows.find((row) => row.species === species)?.total || 0]));
   },
 
-  getPublic(slug, { allowUnpublished = false } = {}) {
-    const animal = animalRepository.findBySlug(slug);
+  async getPublic(slug, { allowUnpublished = false } = {}) {
+    const animal = await animalRepository.findBySlug(slug);
     if (!animal || (!animal.published && !allowUnpublished)) throw new NotFoundError('Cet animal n’est plus en ligne.');
-    return decorate(animal, animalRepository.photos(animal.id));
+    return decorateOne(animal);
   },
 
-  siblings(animal, limit = 3) {
-    return decorateMany(
-      animalRepository
-        .list({ publishedOnly: true, statuses: PUBLIC_STATUSES, species: animal.species, order: 'urgent', limit: limit + 1 })
-        .filter((item) => item.id !== animal.id)
-        .slice(0, limit),
-    );
+  /** Public animal by id, or null (used to link a contact message to an animal). */
+  async findPublicById(id) {
+    const animal = id ? await animalRepository.findById(id) : null;
+    return animal && animal.published ? decorateOne(animal) : null;
+  },
+
+  async siblings(animal, limit = 3) {
+    const list = await animalRepository.list({ publishedOnly: true, statuses: PUBLIC_STATUSES, species: animal.species, order: 'urgent', limit: limit + 1 });
+    return decorateMany(list.filter((item) => item.id !== animal.id).slice(0, limit));
   },
 
   // Back office
@@ -176,78 +183,89 @@ export const animalService = {
     return decorateMany(animalRepository.list({ ...filters, order: filters.order || 'updated' }));
   },
 
-  getById(id) {
-    const animal = animalRepository.findById(id);
+  async getById(id) {
+    const animal = await animalRepository.findById(id);
     if (!animal) throw new NotFoundError('Animal introuvable.');
-    return decorate(animal, animalRepository.photos(animal.id));
+    return decorateOne(animal);
   },
 
-  stats() {
-    return {
-      available: animalRepository.count({ statuses: ['disponible'] }),
-      reserved: animalRepository.count({ statuses: ['reserve'] }),
-      adopted: animalRepository.count({ statuses: ['adopte'] }),
-    };
+  async stats() {
+    const [available, reserved, adopted] = await Promise.all([
+      animalRepository.count({ statuses: ['disponible'] }),
+      animalRepository.count({ statuses: ['reserve'] }),
+      animalRepository.count({ statuses: ['adopte'] }),
+    ]);
+    return { available, reserved, adopted };
   },
 
   /** Photos are processed first so an invalid file never leaves a half-created animal. */
   async create(data, files = []) {
     const saved = [];
     for (const file of files) saved.push(await saveImage(file.buffer, 'animal'));
-    const slug = uniqueSlug(data.name, (candidate) => animalRepository.slugExists(candidate));
-    const id = transaction(() => {
-      const newId = animalRepository.create({ ...data, slug, adopted_at: data.status === 'adopte' ? new Date().toISOString().slice(0, 10) : null });
-      saved.forEach((photo) => animalRepository.addPhoto(newId, photo));
-      return newId;
-    });
+    // Two volunteers creating the same name at once may pick the same slug: retry on the unique constraint.
+    let id;
+    for (let attempt = 0; !id; attempt += 1) {
+      const slug = await findUniqueSlug(data.name, (candidate) => animalRepository.slugExists(candidate));
+      try {
+        id = await transaction(async (tx) => {
+          const newId = await animalRepository.create({ ...data, slug, adopted_at: data.status === 'adopte' ? today() : null }, tx);
+          for (const photo of saved) await animalRepository.addPhoto(newId, photo, tx);
+          return newId;
+        });
+      } catch (error) {
+        if (attempt >= 3 || !/UNIQUE constraint failed: animals\.slug/.test(error.message)) throw error;
+      }
+    }
     logger.info('animal.created', { id });
     return id;
   },
 
-  update(id, data) {
-    const current = this.getById(id);
+  async update(id, data) {
+    const current = await this.getById(id);
     // A record saved by a volunteer is no longer example content.
     const patch = { ...data, example: 0 };
     if (data.name && data.name !== current.name) {
-      patch.slug = uniqueSlug(data.name, (candidate) => animalRepository.slugExists(candidate, id));
+      patch.slug = await findUniqueSlug(data.name, (candidate) => animalRepository.slugExists(candidate, id));
     }
-    if (data.status === 'adopte' && current.status !== 'adopte') patch.adopted_at = new Date().toISOString().slice(0, 10);
+    if (data.status === 'adopte' && current.status !== 'adopte') patch.adopted_at = today();
     if (data.status && data.status !== 'adopte') patch.adopted_at = null;
-    animalRepository.update(id, patch);
+    await animalRepository.update(id, patch);
     logger.info('animal.updated', { id });
   },
 
   setStatus(id, status) {
-    this.update(id, { status });
+    return this.update(id, { status });
   },
 
   async delete(id) {
-    const animal = this.getById(id);
-    animalRepository.delete(id);
+    const animal = await this.getById(id);
+    await transaction((tx) => animalRepository.delete(id, tx));
     for (const photo of animal.photos) await deleteImage(photo.filename);
     logger.info('animal.deleted', { id });
   },
 
   async addPhotos(id, files) {
-    this.getById(id);
+    await this.getById(id);
     for (const file of files) {
       const saved = await saveImage(file.buffer, 'animal');
-      animalRepository.addPhoto(id, saved);
+      await animalRepository.addPhoto(id, saved);
     }
   },
 
   async deletePhoto(animalId, photoId) {
-    const photo = animalRepository.findPhoto(photoId);
+    const photo = await animalRepository.findPhoto(photoId);
     if (!photo || photo.animal_id !== animalId) throw new NotFoundError('Photo introuvable.');
-    animalRepository.deletePhoto(photoId);
+    await animalRepository.deletePhoto(photoId);
     await deleteImage(photo.filename);
   },
 
   /** Moves a photo to the first position, making it the cover. */
-  makeCover(animalId, photoId) {
-    const photos = animalRepository.photos(animalId);
+  async makeCover(animalId, photoId) {
+    const photos = await animalRepository.photos(animalId);
     if (!photos.some((photo) => photo.id === photoId)) throw new NotFoundError('Photo introuvable.');
     const ordered = [photos.find((photo) => photo.id === photoId), ...photos.filter((photo) => photo.id !== photoId)];
-    transaction(() => ordered.forEach((photo, index) => animalRepository.setPhotoPosition(photo.id, index)));
+    await transaction(async (tx) => {
+      for (const [index, photo] of ordered.entries()) await animalRepository.setPhotoPosition(photo.id, index, tx);
+    });
   },
 };

@@ -2,7 +2,7 @@ import { POST_CATEGORIES } from '../config/labels.js';
 import { postRepository } from '../repositories/postRepository.js';
 import { NotFoundError } from '../utils/errors.js';
 import { excerpt, formatDate, nowWallClock, textToHtml } from '../utils/format.js';
-import { uniqueSlug } from '../utils/slug.js';
+import { findUniqueSlug } from '../utils/slug.js';
 import { deleteImage, imageUrl, saveImage } from './imageService.js';
 import { logger } from '../utils/logger.js';
 
@@ -25,58 +25,58 @@ function decorate(post) {
 export const postService = {
   PAGE_SIZE,
 
-  listPublic({ page = 1, category } = {}) {
+  async listPublic({ page = 1, category } = {}) {
     const publishedBefore = nowWallClock();
-    const total = postRepository.count({ publishedBefore, category });
+    const total = await postRepository.count({ publishedBefore, category });
     const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
     const current = Math.min(Math.max(1, page), pages);
-    const posts = postRepository.list({ publishedBefore, category, limit: PAGE_SIZE, offset: (current - 1) * PAGE_SIZE }).map(decorate);
+    const posts = (await postRepository.list({ publishedBefore, category, limit: PAGE_SIZE, offset: (current - 1) * PAGE_SIZE })).map(decorate);
     return { posts, page: current, pages, total };
   },
 
-  latest(limit = 3) {
-    return postRepository.list({ publishedBefore: nowWallClock(), limit }).map(decorate);
+  async latest(limit = 3) {
+    return (await postRepository.list({ publishedBefore: nowWallClock(), limit })).map(decorate);
   },
 
-  getPublic(slug) {
-    const post = postRepository.findBySlug(slug);
+  async getPublic(slug) {
+    const post = await postRepository.findBySlug(slug);
     if (!post || !post.published || post.published_at > nowWallClock()) throw new NotFoundError('Cet article n’existe pas ou plus.');
     return decorate(post);
   },
 
-  listAdmin() {
-    return postRepository.list({ limit: 500 }).map(decorate);
+  async listAdmin() {
+    return (await postRepository.list({ limit: 500 })).map(decorate);
   },
 
-  getById(id) {
-    const post = postRepository.findById(id);
+  async getById(id) {
+    const post = await postRepository.findById(id);
     if (!post) throw new NotFoundError('Article introuvable.');
     return decorate(post);
   },
 
   async create(data, coverFile) {
-    const slug = uniqueSlug(data.title, (candidate) => postRepository.slugExists(candidate));
+    const slug = await findUniqueSlug(data.title, (candidate) => postRepository.slugExists(candidate));
     const cover = coverFile ? (await saveImage(coverFile.buffer, 'post')).filename : null;
-    const id = postRepository.create({ ...data, slug, cover });
+    const id = await postRepository.create({ ...data, slug, cover });
     logger.info('post.created', { id });
     return id;
   },
 
   async update(id, data, coverFile, { removeCover = false } = {}) {
-    const current = this.getById(id);
+    const current = await this.getById(id);
     const patch = { ...data, example: 0 };
-    if (data.title !== current.title) patch.slug = uniqueSlug(data.title, (candidate) => postRepository.slugExists(candidate, id));
+    if (data.title !== current.title) patch.slug = await findUniqueSlug(data.title, (candidate) => postRepository.slugExists(candidate, id));
     if (coverFile || removeCover) {
       patch.cover = coverFile ? (await saveImage(coverFile.buffer, 'post')).filename : null;
       await deleteImage(current.cover);
     }
-    postRepository.update(id, patch);
+    await postRepository.update(id, patch);
     logger.info('post.updated', { id });
   },
 
   async delete(id) {
-    const post = this.getById(id);
-    postRepository.delete(id);
+    const post = await this.getById(id);
+    await postRepository.delete(id);
     await deleteImage(post.cover);
     logger.info('post.deleted', { id });
   },

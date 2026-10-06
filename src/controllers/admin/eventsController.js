@@ -13,12 +13,13 @@ function toFormValues(event) {
   };
 }
 
-export function calendar(req, res) {
+export async function calendar(req, res) {
   const match = /^(\d{4})-(\d{2})$/.exec(String(req.query.mois || ''));
-  res.render('admin/events/calendar.njk', {
-    month: eventService.month(match ? Number(match[1]) : undefined, match ? Number(match[2]) : undefined),
-    upcoming: eventService.upcoming(10, { publicOnly: false }),
-  });
+  const [month, upcoming] = await Promise.all([
+    eventService.month(match ? Number(match[1]) : undefined, match ? Number(match[2]) : undefined),
+    eventService.upcoming(10, { publicOnly: false }),
+  ]);
+  res.render('admin/events/calendar.njk', { month, upcoming });
 }
 
 function renderForm(req, res, { values, errors = {}, event = null }) {
@@ -31,33 +32,33 @@ export function newForm(req, res) {
 }
 
 export const create = formAction(
-  (req, res) => {
+  async (req, res) => {
     const data = validate(eventSchema, req.body);
-    eventService.create(data);
+    await eventService.create(data);
     req.flash('success', 'Événement ajouté à l’agenda.');
     res.redirect(303, `/admin/agenda?mois=${data.starts_at.slice(0, 7)}`);
   },
   (req, res, state) => renderForm(req, res, state),
 );
 
-export function editForm(req, res) {
-  const event = eventService.getById(idParam(req));
+export async function editForm(req, res) {
+  const event = await eventService.getById(idParam(req));
   renderForm(req, res, { values: toFormValues(event), event });
 }
 
 export const update = formAction(
-  (req, res) => {
+  async (req, res) => {
     const data = validate(eventSchema, req.body);
-    eventService.update(idParam(req), data);
+    await eventService.update(idParam(req), data);
     req.flash('success', 'Événement mis à jour.');
     res.redirect(303, `/admin/agenda?mois=${data.starts_at.slice(0, 7)}`);
   },
-  (req, res, state) => renderForm(req, res, { ...state, event: eventService.getById(idParam(req)) }),
+  async (req, res, state) => renderForm(req, res, { ...state, event: await eventService.getById(idParam(req)) }),
 );
 
-export function remove(req, res) {
-  const event = eventService.getById(idParam(req));
-  eventService.delete(event.id);
+export async function remove(req, res) {
+  const event = await eventService.getById(idParam(req));
+  await eventService.delete(event.id);
   req.flash('success', 'Événement supprimé.');
   res.redirect(303, `/admin/agenda?mois=${event.starts_at.slice(0, 7)}`);
 }

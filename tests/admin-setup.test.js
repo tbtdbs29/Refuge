@@ -28,7 +28,7 @@ describe('installation initiale (base sans compte)', () => {
     await agent.get('/admin/installation');
     const res = await agent.post('/admin/installation').type('form').send({ name: 'X', email: 'x@refuge.test', password: 'mot-de-passe-123' });
     assert.equal(res.status, 403);
-    assert.equal(env.services.userService.hasUsers(), false);
+    assert.equal(await env.services.userService.hasUsers(), false);
   });
 
   test('l’installation refuse un mot de passe absent ou trop court (422)', async () => {
@@ -40,7 +40,7 @@ describe('installation initiale (base sans compte)', () => {
     const short = await agent.post('/admin/installation').type('form').send({ _csrf: token, name: 'Admin', email: 'admin@refuge.test', password: 'court' });
     assert.equal(short.status, 422);
     assert.ok(short.text.includes('10 caractères minimum'));
-    assert.equal(env.services.userService.hasUsers(), false);
+    assert.equal(await env.services.userService.hasUsers(), false);
   });
 
   test('l’installation crée un administrateur (même si un autre rôle est envoyé) et le connecte', async () => {
@@ -49,7 +49,7 @@ describe('installation initiale (base sans compte)', () => {
     const res = await agent.post('/admin/installation').type('form').send({ _csrf: token, name: 'Premier Admin', email: 'premier@refuge.test', password: 'premier-mot-de-passe', role: 'editor' });
     assert.equal(res.status, 303);
     assert.equal(res.headers.location, '/admin');
-    const [user] = env.services.userService.list();
+    const [user] = await env.services.userService.list();
     assert.equal(user.email, 'premier@refuge.test');
     assert.equal(user.role, 'admin');
     const dashboard = await agent.get('/admin');
@@ -69,7 +69,7 @@ describe('installation initiale (base sans compte)', () => {
     const res = await agent.post('/admin/installation').type('form').send({ _csrf: token, name: 'Attaquant', email: 'attaquant@refuge.test', password: 'attaquant-password' });
     assert.equal(res.status, 302);
     assert.equal(res.headers.location, '/admin/connexion');
-    assert.equal(env.services.userService.list().length, 1);
+    assert.equal((await env.services.userService.list()).length, 1);
     assert.equal((await agent.get('/admin')).status, 302);
   });
 });

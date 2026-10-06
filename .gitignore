@@ -7,3 +7,4 @@ data/uploads/*
 .impeccable/review/
 .impeccable/ref/
 .impeccable/questions/
+.vercel/

@@ -6,17 +6,17 @@ function safeRedirect(target) {
   return typeof target === 'string' && /^\/admin(\/|$|\?)/.test(target) ? target : '/admin';
 }
 
-export function loginForm(req, res) {
+export async function loginForm(req, res) {
   if (req.user) return res.redirect('/admin');
-  if (!userService.hasUsers()) return res.redirect('/admin/installation');
+  if (!(await userService.hasUsers())) return res.redirect('/admin/installation');
   res.render('admin/login.njk', { values: {}, errors: {}, next: safeRedirect(req.query.suite) });
 }
 
-export function login(req, res) {
+export async function login(req, res) {
   const next = safeRedirect(req.body.next);
   try {
     const { email, password } = validate(loginSchema, req.body);
-    const user = userService.authenticate(email, password);
+    const user = await userService.authenticate(email, password);
     if (!user) throw new ValidationError({ form: 'Email ou mot de passe incorrect.' });
     req.session.userId = user.id;
     req.session.csrf = null;
@@ -33,17 +33,17 @@ export function logout(req, res) {
 }
 
 /** First-run setup: only available while no account exists. */
-export function setupForm(req, res) {
-  if (userService.hasUsers()) return res.redirect('/admin/connexion');
+export async function setupForm(req, res) {
+  if (await userService.hasUsers()) return res.redirect('/admin/connexion');
   res.render('admin/setup.njk', { values: {}, errors: {} });
 }
 
-export function setup(req, res) {
-  if (userService.hasUsers()) return res.redirect('/admin/connexion');
+export async function setup(req, res) {
+  if (await userService.hasUsers()) return res.redirect('/admin/connexion');
   try {
     const data = validate(userSchema, { ...req.body, role: 'admin' });
     if (!data.password) throw new ValidationError({ password: 'Choisissez un mot de passe (10 caractères minimum).' });
-    const id = userService.create(data);
+    const id = await userService.create(data);
     req.session.userId = id;
     req.flash('success', 'Bienvenue ! Votre compte administrateur est créé.');
     res.redirect(303, '/admin');

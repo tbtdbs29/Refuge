@@ -1,7 +1,7 @@
 // Loads example content (fictional animals, events and news) into an empty database.
 // Usage: npm run seed            (refuses if animals already exist)
 //        npm run seed -- --force (wipes animals, events, posts and messages first)
-import { closeDb, getDb, transaction } from './index.js';
+import { closeDb, db, transaction } from './index.js';
 import { animalService } from '../services/animalService.js';
 import { eventRepository } from '../repositories/eventRepository.js';
 import { postService } from '../services/postService.js';
@@ -110,21 +110,22 @@ const POSTS = [
 ];
 
 async function seed({ force }) {
-  const db = getDb();
-  const existing = db.prepare('SELECT COUNT(*) AS total FROM animals').get().total;
+  const { total: existing } = await db.get('SELECT COUNT(*) AS total FROM animals');
   if (existing && !force) {
     console.log('The database already contains animals. Use --force to replace the example content.');
     return;
   }
-  transaction(() => {
-    if (force) db.exec('DELETE FROM animal_photos; DELETE FROM animals; DELETE FROM events; DELETE FROM posts; DELETE FROM messages;');
-  });
+  if (force) {
+    await transaction(async (tx) => {
+      for (const table of ['animal_photos', 'messages', 'animals', 'events', 'posts']) await tx.run(`DELETE FROM ${table}`);
+    });
+  }
   for (const animal of ANIMALS) await animalService.create({ ...base, birth_date: null, ...animal });
   for (const animal of ADOPTED) {
     const id = await animalService.create({ ...base, ...animal, adopted: undefined, status: 'adopte', tagline: 'A trouvé une famille aimante.' });
-    db.prepare('UPDATE animals SET adopted_at = ? WHERE id = ?').run(animal.adopted, id);
+    await db.run('UPDATE animals SET adopted_at = ? WHERE id = ?', [animal.adopted, id]);
   }
-  for (const event of EVENTS) eventRepository.create({ all_day: 0, visibility: 'public', example: 1, ...event });
+  for (const event of EVENTS) await eventRepository.create({ all_day: 0, visibility: 'public', example: 1, ...event });
   for (const post of POSTS) await postService.create({ excerpt: '', published: 1, example: 1, ...post });
   console.log(`Seeded ${ANIMALS.length + ADOPTED.length} animals, ${EVENTS.length} events, ${POSTS.length} posts.`);
 }

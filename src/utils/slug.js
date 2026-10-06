@@ -20,3 +20,15 @@ export function uniqueSlug(text, exists) {
   }
   return candidate;
 }
+
+/** Async variant of uniqueSlug for database-backed checks. */
+export async function findUniqueSlug(text, exists) {
+  const base = slugify(text);
+  let candidate = base;
+  let suffix = 2;
+  while (await exists(candidate)) {
+    candidate = `${base}-${suffix}`;
+    suffix += 1;
+  }
+  return candidate;
+}

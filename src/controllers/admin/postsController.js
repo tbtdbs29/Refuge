@@ -3,8 +3,8 @@ import { postService } from '../../services/postService.js';
 import { nowWallClock } from '../../utils/format.js';
 import { formAction, idParam } from './helpers.js';
 
-export function list(req, res) {
-  res.render('admin/posts/list.njk', { posts: postService.listAdmin() });
+export async function list(req, res) {
+  res.render('admin/posts/list.njk', { posts: await postService.listAdmin() });
 }
 
 function renderForm(req, res, { values, errors = {}, post = null }) {
@@ -25,8 +25,8 @@ export const create = formAction(
   (req, res, state) => renderForm(req, res, state),
 );
 
-export function editForm(req, res) {
-  const post = postService.getById(idParam(req));
+export async function editForm(req, res) {
+  const post = await postService.getById(idParam(req));
   renderForm(req, res, { values: post, post });
 }
 
@@ -38,7 +38,7 @@ export const update = formAction(
     req.flash('success', 'Article mis à jour.');
     res.redirect(303, `/admin/actualites/${id}`);
   },
-  (req, res, state) => renderForm(req, res, { ...state, post: postService.getById(idParam(req)) }),
+  async (req, res, state) => renderForm(req, res, { ...state, post: await postService.getById(idParam(req)) }),
 );
 
 export async function remove(req, res) {

@@ -33,6 +33,54 @@
     ['dragleave', 'drop'].forEach((type) => zone.addEventListener(type, () => zone.classList.remove('is-over')));
   });
 
+  // Shrink photos in the browser before upload: faster on mobile networks, and the hosting
+  // platform refuses request bodies above about 4.5 MB.
+  const MAX_SIDE = 2000;
+  const MAX_REQUEST_BYTES = 4_200_000;
+  const shrink = async (file) => {
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size < 900_000) return file;
+    try {
+      const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(bitmap.width * scale);
+      canvas.height = Math.round(bitmap.height * scale);
+      canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.86));
+      if (!blob || blob.size >= file.size) return file;
+      return new File([blob], `${file.name.replace(/\.[^.]+$/, '')}.jpg`, { type: 'image/jpeg' });
+    } catch {
+      return file;
+    }
+  };
+  document.querySelectorAll('form[enctype="multipart/form-data"]').forEach((form) => {
+    form.addEventListener('submit', async (event) => {
+      const inputs = [...form.querySelectorAll('input[type="file"]')].filter((input) => input.files?.length);
+      if (form.dataset.photosReady === '1' || !inputs.length || typeof DataTransfer === 'undefined') return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const submitter = event.submitter;
+      const notes = form.querySelectorAll('[data-photo-names]');
+      notes.forEach((note) => (note.textContent = 'Préparation des photos…'));
+      let total = 0;
+      for (const input of inputs) {
+        const transfer = new DataTransfer();
+        for (const file of input.files) {
+          const ready = await shrink(file);
+          total += ready.size;
+          transfer.items.add(ready);
+        }
+        input.files = transfer.files;
+      }
+      if (total > MAX_REQUEST_BYTES) {
+        notes.forEach((note) => (note.textContent = 'Photos trop lourdes pour un seul envoi : ajoutez-en moins à la fois (ou en JPEG).'));
+        return;
+      }
+      form.dataset.photosReady = '1';
+      form.requestSubmit(submitter && submitter.form === form ? submitter : undefined);
+    });
+  });
+
   // Disable submit buttons while a form is sending (uploads can take a few seconds)
   document.querySelectorAll('form').forEach((form) => {
     form.addEventListener('submit', (event) => {

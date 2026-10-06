@@ -28,8 +28,8 @@ adminRouter.get('/installation', auth.setupForm);
 adminRouter.post('/installation', loginLimiter, auth.setup);
 
 adminRouter.use(requireAuth);
-adminRouter.use((req, res, next) => {
-  res.locals.unreadMessages = messageService.counts().nouveau;
+adminRouter.use(async (req, res, next) => {
+  res.locals.unreadMessages = (await messageService.counts()).nouveau;
   next();
 });
 

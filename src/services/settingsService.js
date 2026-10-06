@@ -1,22 +1,25 @@
 import { DEFAULT_SETTINGS } from '../config/defaultSettings.js';
 import { settingRepository } from '../repositories/settingRepository.js';
 
+// Short cache: on serverless hosting several instances may run, so another instance's
+// update becomes visible here within a few seconds.
+const TTL_MS = 10_000;
 let cache;
+let cachedAt = 0;
 
 export const settingsService = {
-  get() {
-    if (!cache) {
-      const stored = settingRepository.all();
-      cache = Object.fromEntries(
-        Object.entries(DEFAULT_SETTINGS).map(([key, defaults]) => [key, { ...defaults, ...(stored[key] || {}) }]),
-      );
+  async get() {
+    if (!cache || Date.now() - cachedAt > TTL_MS) {
+      const stored = await settingRepository.all();
+      cache = Object.fromEntries(Object.entries(DEFAULT_SETTINGS).map(([key, defaults]) => [key, { ...defaults, ...(stored[key] || {}) }]));
+      cachedAt = Date.now();
     }
     return cache;
   },
 
-  update(section, value) {
+  async update(section, value) {
     if (!(section in DEFAULT_SETTINGS)) throw new Error(`Unknown settings section: ${section}`);
-    settingRepository.set(section, value);
+    await settingRepository.set(section, value);
     cache = undefined;
   },
 

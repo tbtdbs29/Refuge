@@ -9,6 +9,7 @@ import { loadUser } from './middlewares/auth.js';
 import { errorHandler, notFound } from './middlewares/errorHandler.js';
 import { flash } from './middlewares/flash.js';
 import { csrfToken, verifyCsrf } from './middlewares/security.js';
+import { ensureDb } from './db/index.js';
 import { adminRouter } from './routes/admin.js';
 import { publicRouter } from './routes/public.js';
 import { settingsService } from './services/settingsService.js';
@@ -44,7 +45,7 @@ export function createApp() {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          imgSrc: ["'self'", 'data:', 'blob:'],
+          imgSrc: ["'self'", 'data:', 'blob:', 'https://*.public.blob.vercel-storage.com'],
           styleSrc: ["'self'", "'unsafe-inline'"],
           scriptSrc: ["'self'"],
           formAction: ["'self'"],
@@ -56,9 +57,19 @@ export function createApp() {
     }),
   );
 
-  const staticOptions = { maxAge: config.isProduction ? '7d' : 0 };
+  // In production the CDN may cache static assets (s-maxage); fonts are versioned by filename.
+  const staticOptions = {
+    maxAge: config.isProduction ? '7d' : 0,
+    setHeaders: config.isProduction ? (res) => res.setHeader('Cache-Control', 'public, max-age=604800, s-maxage=604800') : undefined,
+  };
   app.use(express.static(path.join(config.root, 'public'), staticOptions));
-  app.use('/uploads', express.static(config.uploadDir, { ...staticOptions, maxAge: '30d', immutable: true }));
+  app.use('/uploads', express.static(config.uploadDir, { maxAge: '30d', immutable: true }));
+
+  // The schema is created on first use (cold start); every dynamic request waits for it.
+  app.use(async (req, res, next) => {
+    await ensureDb();
+    next();
+  });
 
   app.use(express.urlencoded({ extended: false, limit: '200kb' }));
   app.use(
@@ -74,8 +85,8 @@ export function createApp() {
   app.use(csrfToken);
   app.use(loadUser);
   app.use(flash);
-  app.use((req, res, next) => {
-    res.locals.settings = settingsService.get();
+  app.use(async (req, res, next) => {
+    res.locals.settings = await settingsService.get();
     res.locals.path = req.path;
     res.locals.baseUrl = config.baseUrl;
     next();

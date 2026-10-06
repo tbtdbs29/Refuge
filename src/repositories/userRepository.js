@@ -1,56 +1,54 @@
-import { getDb } from '../db/index.js';
+import { db } from '../db/index.js';
 
 const PUBLIC_COLUMNS = 'id, name, email, role, last_login_at, created_at';
 
 export const userRepository = {
   findById(id) {
-    return getDb().prepare(`SELECT ${PUBLIC_COLUMNS} FROM users WHERE id = ?`).get(id);
+    return db.get(`SELECT ${PUBLIC_COLUMNS} FROM users WHERE id = ?`, [id]);
   },
 
   findWithHashByEmail(email) {
-    return getDb().prepare('SELECT * FROM users WHERE email = ?').get(email);
+    return db.get('SELECT * FROM users WHERE email = ?', [email]);
   },
 
-  findHashById(id) {
-    return getDb().prepare('SELECT password_hash FROM users WHERE id = ?').get(id)?.password_hash;
+  async findHashById(id) {
+    return (await db.get('SELECT password_hash FROM users WHERE id = ?', [id]))?.password_hash;
   },
 
-  emailExists(email, exceptId = 0) {
-    return Boolean(getDb().prepare('SELECT 1 FROM users WHERE email = ? AND id != ?').get(email, exceptId));
+  async emailExists(email, exceptId = 0) {
+    return Boolean(await db.get('SELECT 1 AS found FROM users WHERE email = ? AND id != ?', [email, exceptId]));
   },
 
   list() {
-    return getDb().prepare(`SELECT ${PUBLIC_COLUMNS} FROM users ORDER BY name COLLATE NOCASE`).all();
+    return db.all(`SELECT ${PUBLIC_COLUMNS} FROM users ORDER BY name COLLATE NOCASE`);
   },
 
-  countAdmins() {
-    return getDb().prepare("SELECT COUNT(*) AS total FROM users WHERE role = 'admin'").get().total;
+  async countAdmins() {
+    return (await db.get("SELECT COUNT(*) AS total FROM users WHERE role = 'admin'")).total;
   },
 
-  count() {
-    return getDb().prepare('SELECT COUNT(*) AS total FROM users').get().total;
+  async count() {
+    return (await db.get('SELECT COUNT(*) AS total FROM users')).total;
   },
 
-  create({ name, email, passwordHash, role }) {
-    const result = getDb()
-      .prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)')
-      .run(name, email, passwordHash, role);
-    return Number(result.lastInsertRowid);
+  async create({ name, email, passwordHash, role }) {
+    const result = await db.run('INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)', [name, email, passwordHash, role]);
+    return result.lastInsertRowid;
   },
 
-  update(id, { name, email, role }) {
-    getDb().prepare('UPDATE users SET name = ?, email = ?, role = ? WHERE id = ?').run(name, email, role, id);
+  async update(id, { name, email, role }) {
+    await db.run('UPDATE users SET name = ?, email = ?, role = ? WHERE id = ?', [name, email, role, id]);
   },
 
-  setPassword(id, passwordHash) {
-    getDb().prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(passwordHash, id);
+  async setPassword(id, passwordHash) {
+    await db.run('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, id]);
   },
 
-  touchLogin(id) {
-    getDb().prepare("UPDATE users SET last_login_at = datetime('now') WHERE id = ?").run(id);
+  async touchLogin(id) {
+    await db.run("UPDATE users SET last_login_at = datetime('now') WHERE id = ?", [id]);
   },
 
-  delete(id) {
-    getDb().prepare('DELETE FROM users WHERE id = ?').run(id);
+  async delete(id) {
+    await db.run('DELETE FROM users WHERE id = ?', [id]);
   },
 };

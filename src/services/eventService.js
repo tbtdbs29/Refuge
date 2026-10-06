@@ -48,15 +48,15 @@ function icsDate(value) {
 
 export const eventService = {
   /** Month view: weeks starting on Monday, each day carrying its events. */
-  month(yearInput, monthInput, { publicOnly = false } = {}) {
+  async month(yearInput, monthInput, { publicOnly = false } = {}) {
     const { year, month } = clampMonth(yearInput, monthInput);
     const first = new Date(Date.UTC(year, month - 1, 1));
     const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
     const leading = (first.getUTCDay() + 6) % 7;
     const next = shiftMonth(year, month, 1);
-    const events = eventRepository
-      .between(`${dayKey(year, month, 1)}T00:00`, `${dayKey(next.year, next.month, 1)}T00:00`, { publicOnly })
-      .map(decorate);
+    const events = (await eventRepository.between(`${dayKey(year, month, 1)}T00:00`, `${dayKey(next.year, next.month, 1)}T00:00`, { publicOnly })).map(
+      decorate,
+    );
     const today = nowWallClock().slice(0, 10);
 
     const cells = [];
@@ -86,31 +86,31 @@ export const eventService = {
     };
   },
 
-  upcoming(limit = 4, { publicOnly = true } = {}) {
-    return eventRepository.upcoming(nowWallClock(), { limit, publicOnly }).map(decorate);
+  async upcoming(limit = 4, { publicOnly = true } = {}) {
+    return (await eventRepository.upcoming(nowWallClock(), { limit, publicOnly })).map(decorate);
   },
 
-  getById(id, { publicOnly = false } = {}) {
-    const event = eventRepository.findById(id);
+  async getById(id, { publicOnly = false } = {}) {
+    const event = await eventRepository.findById(id);
     if (!event || (publicOnly && event.visibility !== 'public')) throw new NotFoundError('Événement introuvable.');
     return decorate(event);
   },
 
-  create(data) {
-    const id = eventRepository.create({ example: 0, ...data });
+  async create(data) {
+    const id = await eventRepository.create({ example: 0, ...data });
     logger.info('event.created', { id });
     return id;
   },
 
-  update(id, data) {
-    this.getById(id);
-    eventRepository.update(id, { ...data, example: 0 });
+  async update(id, data) {
+    await this.getById(id);
+    await eventRepository.update(id, { ...data, example: 0 });
     logger.info('event.updated', { id });
   },
 
-  delete(id) {
-    this.getById(id);
-    eventRepository.delete(id);
+  async delete(id) {
+    await this.getById(id);
+    await eventRepository.delete(id);
     logger.info('event.deleted', { id });
   },
 
