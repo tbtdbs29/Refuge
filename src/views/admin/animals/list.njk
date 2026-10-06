@@ -1,0 +1,78 @@
+{% extends "layouts/admin.njk" %}
+{% from "partials/macros.njk" import icon, plate %}
+{% set pageTitle = 'Animaux' %}
+
+{% block header %}
+<header class="admin-head">
+  <div>
+    <h1 class="display">Animaux</h1>
+    <p class="admin-head__sub">{{ stats.available }} à l’adoption · {{ stats.reserved }} réservé{{ 's' if stats.reserved > 1 }} · {{ stats.adopted }} adopté{{ 's' if stats.adopted > 1 }}</p>
+  </div>
+  <a class="btn" href="/admin/animaux/nouveau">{{ icon('dog') }} Nouvel animal</a>
+</header>
+{% endblock %}
+
+{% block content %}
+<form class="toolbar" method="get" action="/admin/animaux" role="search">
+  <div class="segmented" role="group" aria-label="Statut">
+    {% for item in [['', 'Tous'], ['disponible', 'À l’adoption'], ['reserve', 'Réservés'], ['adopte', 'Adoptés']] %}
+      <a href="/admin/animaux?statut={{ item[0] }}{% if filters.species %}&espece={{ filters.species }}{% endif %}" {% if filters.status == item[0] %}aria-current="page"{% endif %}>{{ item[1] }}</a>
+    {% endfor %}
+  </div>
+  <input type="hidden" name="statut" value="{{ filters.status }}">
+  <label class="visually-hidden" for="f-espece">Espèce</label>
+  <select class="select" id="f-espece" name="espece" data-autosubmit>
+    <option value="">Toutes les espèces</option>
+    {% for key, info in labels.SPECIES %}<option value="{{ key }}" {% if filters.species == key %}selected{% endif %}>{{ info.plural }}</option>{% endfor %}
+  </select>
+  <label class="visually-hidden" for="f-q">Rechercher</label>
+  <input class="input" id="f-q" type="search" name="q" value="{{ filters.search }}" placeholder="Nom, race, n° d’identification">
+  <button class="btn btn--ghost btn--small" type="submit">Rechercher</button>
+</form>
+
+{% if animals | length %}
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr><th scope="col">Animal</th><th scope="col">Espèce</th><th scope="col">Âge</th><th scope="col">Statut</th><th scope="col">En ligne</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr>
+    </thead>
+    <tbody>
+      {% for animal in animals %}
+        <tr>
+          <td>
+            <a class="table__animal" href="/admin/animaux/{{ animal.id }}">
+              <span class="table__thumb">{{ plate(animal, { size: 'mini', noCaption: true }) }}</span>
+              <span><strong>{{ animal.name }}</strong>{% if animal.urgent %} <span class="tag tag--sos">SOS</span>{% endif %}{% if animal.featured %} <span class="tag">À la une</span>{% endif %}{% if animal.example %} <span class="tag tag--example">Exemple</span>{% endif %}<small>{{ animal.breed or animal.sexLabel }}</small></span>
+            </a>
+          </td>
+          <td>{{ animal.speciesLabel }}</td>
+          <td>{{ animal.age or '—' }}</td>
+          <td>
+            <form class="status-form" method="post" action="/admin/animaux/{{ animal.id }}/statut">
+              <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+              <input type="hidden" name="back" value="list">
+              <label class="visually-hidden" for="s-{{ animal.id }}">Statut de {{ animal.name }}</label>
+              <select class="select select--status status--{{ animal.status }}" id="s-{{ animal.id }}" name="status" data-autosubmit>
+                {% for key, text in labels.STATUS %}<option value="{{ key }}" {% if animal.status == key %}selected{% endif %}>{{ text }}</option>{% endfor %}
+              </select>
+              <noscript><button class="btn btn--small" type="submit">OK</button></noscript>
+            </form>
+          </td>
+          <td>{% if animal.published %}<span class="dot dot--on">Oui</span>{% else %}<span class="dot">Masqué</span>{% endif %}</td>
+          <td class="table__actions">
+            <a class="btn btn--ghost btn--small" href="/admin/animaux/{{ animal.id }}">Modifier</a>
+            <a class="icon-link" href="{{ animal.url }}" target="_blank" rel="noopener" aria-label="Voir la fiche publique de {{ animal.name }}">{{ icon('external') }}</a>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="admin-empty">
+  <h2 class="display">Aucun animal ici</h2>
+  <p>{% if filters.search or filters.status or filters.species %}Aucun résultat pour ces filtres.{% else %}Commencez par ajouter le premier pensionnaire.{% endif %}</p>
+  <a class="btn" href="/admin/animaux/nouveau">{{ icon('dog') }} Nouvel animal</a>
+</div>
+{% endif %}
+{% endblock %}

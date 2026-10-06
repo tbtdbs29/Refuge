@@ -1,0 +1,43 @@
+{% extends "layouts/site.njk" %}
+{% from "partials/macros.njk" import icon %}
+{% set pageTitle = 'Actualités' %}
+
+{% block content %}
+<div class="section-inner">
+  <header class="page-head">
+    <h1 class="display">Nouvelles du refuge</h1>
+    <div class="ornament" aria-hidden="true"><span class="ornament__diamond"></span></div>
+    <p class="lede">Sauvetages, remerciements, appels à l’aide et conseils : la vie du refuge, au fil des jours.</p>
+  </header>
+  <ul class="tabs" style="margin-bottom: var(--space-7)">
+    <li><a class="tab" href="/actualites" {% if not category %}aria-current="page"{% endif %}>Toutes</a></li>
+    {% for key, text in labels.POST_CATEGORIES %}
+      <li><a class="tab" href="/actualites?categorie={{ key }}" {% if category == key %}aria-current="page"{% endif %}>{{ text }}</a></li>
+    {% endfor %}
+  </ul>
+  {% if posts | length %}
+    <div class="news-grid">
+      {% for post in posts %}
+        <article class="news-card reveal" style="--reveal-delay: {{ (loop.index0 % 3) * 0.08 }}s">
+          <div class="news-card__cover">
+            {% if post.coverThumb %}<img src="{{ post.coverThumb }}" alt="" loading="lazy">
+            {% else %}<div class="news-card__placeholder" style="--tone: {{ ['var(--ajonc)', 'var(--bruyere)', 'var(--ecume)', 'var(--ciel)'][loop.index0 % 4] }}"><svg aria-hidden="true"><use href="#i-sprig"></use></svg></div>{% endif %}
+          </div>
+          <h2 class="display"><a href="{{ post.url }}">{{ post.title }}</a></h2>
+          <p class="label" style="color: var(--bruyere-deep); font-weight: 500">{{ post.categoryLabel }} · {{ post.dateLabel }}{% if post.example %} · Exemple{% endif %}</p>
+          <p>{{ post.summary | truncate(160, true, '…') }}</p>
+        </article>
+      {% endfor %}
+    </div>
+    {% if pages > 1 %}
+      <ul class="pagination">
+        {% for p in range(1, pages + 1) %}
+          <li><a class="tab" href="/actualites?page={{ p }}{% if category %}&categorie={{ category }}{% endif %}" {% if p == page %}aria-current="page"{% endif %}>{{ p }}</a></li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% else %}
+    <p class="empty-line">Aucun article dans cette rubrique pour le moment.</p>
+  {% endif %}
+</div>
+{% endblock %}

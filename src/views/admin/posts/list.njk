@@ -1,0 +1,33 @@
+{% extends "layouts/admin.njk" %}
+{% from "partials/macros.njk" import icon %}
+{% set pageTitle = 'Actualités' %}
+
+{% block header %}
+<header class="admin-head">
+  <div><h1 class="display">Actualités</h1><p class="admin-head__sub">Les articles publiés apparaissent sur l’accueil et dans « Actualités ».</p></div>
+  <a class="btn" href="/admin/actualites/nouveau">{{ icon('doc') }} Nouvel article</a>
+</header>
+{% endblock %}
+
+{% block content %}
+{% if posts | length %}
+<div class="table-wrap">
+  <table class="table">
+    <thead><tr><th scope="col">Article</th><th scope="col">Rubrique</th><th scope="col">Date</th><th scope="col">État</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+    <tbody>
+      {% for post in posts %}
+        <tr>
+          <td><a class="table__title" href="/admin/actualites/{{ post.id }}"><strong>{{ post.title }}</strong>{% if post.example %} <span class="tag tag--example">Exemple</span>{% endif %}<small>{{ post.summary | truncate(90, true, '…') }}</small></a></td>
+          <td>{{ post.categoryLabel }}</td>
+          <td>{{ post.dateLabel }}</td>
+          <td>{% if not post.published %}<span class="dot">Brouillon</span>{% elif post.isScheduled %}<span class="dot dot--wait">Programmé</span>{% else %}<span class="dot dot--on">Publié</span>{% endif %}</td>
+          <td class="table__actions"><a class="btn btn--ghost btn--small" href="/admin/actualites/{{ post.id }}">Modifier</a></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="admin-empty"><h2 class="display">Pas encore d’article</h2><p>Racontez la vie du refuge : un sauvetage, un merci, un appel aux dons.</p><a class="btn" href="/admin/actualites/nouveau">Écrire un article</a></div>
+{% endif %}
+{% endblock %}

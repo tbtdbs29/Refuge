@@ -1,0 +1,55 @@
+{% extends "layouts/site.njk" %}
+{% from "partials/macros.njk" import icon, animalCard, plate %}
+{% set pageTitle = speciesInfo.plural + ' à adopter' if speciesInfo else 'Nos animaux à adopter' %}
+
+{% block content %}
+<div class="section-inner">
+  <header class="page-head">
+    <h1 class="display">{{ speciesInfo.plural if speciesInfo else 'Nos animaux' }}</h1>
+    <div class="ornament" aria-hidden="true"><span class="ornament__diamond"></span></div>
+    <p class="lede">
+      {% if species == 'chat' %}Tous nos chats vivent en famille d’accueil : écrivez-nous par email ou via le formulaire en décrivant votre foyer.
+      {% elif species == 'chien' %}Nos chiens vous attendent au refuge, tous les jours de 10 h à 12 h et de 14 h à 17 h 30.
+      {% else %}Chaque planche dit l’essentiel : âge, entente avec les chats, les chiens et les enfants, et le logement qui lui convient.{% endif %}
+    </p>
+  </header>
+
+  <form class="filters" method="get" action="/animaux" aria-label="Filtrer les animaux">
+    <ul class="tabs">
+      {% set tabs = [['', 'Tous', 'sprig', counts.chien + counts.chat + counts.nac + counts.ferme], ['chiens', 'Chiens', 'dog', counts.chien], ['chats', 'Chats', 'cat', counts.chat], ['nac', 'NAC', 'rabbit', counts.nac], ['ferme', 'Ferme', 'goat', counts.ferme]] %}
+      {% for tab in tabs %}
+        <li><a class="tab" href="/animaux{% if tab[0] %}?espece={{ tab[0] }}{% endif %}" {% if query.espece == tab[0] %}aria-current="page"{% endif %}>{{ icon(tab[2]) }}{{ tab[1] }} <span class="tab__count">{{ tab[3] }}</span></a></li>
+      {% endfor %}
+    </ul>
+    <div class="filters__checks">
+      {% if query.espece %}<input type="hidden" name="espece" value="{{ query.espece }}">{% endif %}
+      <label class="visually-hidden" for="f-sexe">Sexe</label>
+      <select class="select" id="f-sexe" name="sexe">
+        <option value="">Mâle ou femelle</option>
+        <option value="male" {% if query.sexe == 'male' %}selected{% endif %}>Mâle</option>
+        <option value="femelle" {% if query.sexe == 'femelle' %}selected{% endif %}>Femelle</option>
+      </select>
+      <label class="check"><input type="checkbox" name="enfants" value="1" {% if query.enfants %}checked{% endif %}> OK avec les enfants</label>
+      <label class="check"><input type="checkbox" name="chats" value="1" {% if query.chats %}checked{% endif %}> OK avec les chats</label>
+      <label class="check"><input type="checkbox" name="chiens" value="1" {% if query.chiens %}checked{% endif %}> OK avec les chiens</label>
+      <button class="btn btn--small" type="submit">Filtrer</button>
+      {% if hasFilters %}<a class="arrow-link" href="/animaux{% if query.espece %}?espece={{ query.espece }}{% endif %}">Effacer les filtres</a>{% endif %}
+    </div>
+  </form>
+
+  {% if animals | length %}
+    <p class="results-line" role="status">{% set n = animals | length %}{{ n }} {{ 'animaux correspondent' if n > 1 else 'animal correspond' }} à votre recherche.</p>
+    <div class="plate-grid">
+      {% for animal in animals %}
+        {{ animalCard(animal, { index: loop.index0, heart: true }) }}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <h2 class="display">Personne ici pour l’instant</h2>
+      <p>Aucun animal ne correspond à ces critères. Élargissez la recherche, ou revenez bientôt : de nouveaux pensionnaires arrivent chaque semaine.</p>
+      <a class="btn" href="/animaux">Voir tous les animaux {{ icon('arrow') }}</a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

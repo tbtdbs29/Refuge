@@ -1,0 +1,56 @@
+{% extends "layouts/admin.njk" %}
+{% from "partials/macros.njk" import icon, field, textarea, select %}
+{% set pageTitle = post.title if post else 'Nouvel article' %}
+
+{% block header %}
+<header class="admin-head">
+  <div>
+    <a class="back-link" href="/admin/actualites">{{ icon('arrow-left') }} Actualités</a>
+    <h1 class="display">{{ post.title if post else 'Nouvel article' }}</h1>
+  </div>
+  {% if post and post.published %}<a class="btn btn--ghost" href="{{ post.url }}" target="_blank" rel="noopener">Voir l’article {{ icon('external') }}</a>{% endif %}
+</header>
+{% endblock %}
+
+{% block content %}
+{% if errors | length %}<div class="notice notice--error admin-flash" role="alert"><svg aria-hidden="true"><use href="#i-alert"></use></svg><p>{{ errors.photo or 'Certains champs sont à corriger.' }}</p></div>{% endif %}
+{% if post and post.example %}<div class="notice admin-flash" role="note"><svg aria-hidden="true"><use href="#i-alert"></use></svg><p>Contenu d’exemple, affiché comme tel sur le site. Dès que vous l’enregistrez, il devient un contenu réel ; sinon, supprimez-le.</p></div>{% endif %}
+<form class="form-card form-card--narrow" method="post" action="{{ ('/admin/actualites/' + post.id) if post else '/admin/actualites' }}?_csrf={{ csrfToken }}" enctype="multipart/form-data">
+  {{ field('title', 'Titre', values, errors, 'text', '', 'maxlength="140"', true) }}
+  <div class="form-grid form-grid--2">
+    {{ select('category', 'Rubrique', labels.POST_CATEGORIES, values, errors) }}
+    {{ field('published_at', 'Date de publication', values, errors, 'datetime-local', 'Une date future programme l’article.', '', true) }}
+  </div>
+  {{ field('excerpt', 'Résumé (facultatif)', values, errors, 'text', 'Affiché dans les listes. Sinon, le début de l’article est utilisé.', 'maxlength="300"') }}
+  {{ textarea('body', 'Contenu', values, errors, 'Ligne vide = nouveau paragraphe. « - » en début de ligne = liste. **texte** = gras. Les liens web deviennent cliquables.', 14, true) }}
+  <div class="field{% if errors.photo %} has-error{% endif %}">
+    <label for="f-cover">Image de couverture</label>
+    {% if post and post.coverThumb %}
+      <div class="cover-current"><img src="{{ post.coverThumb }}" alt="Couverture actuelle"><label class="check"><input type="checkbox" name="remove_cover"> Retirer l’image</label></div>
+    {% endif %}
+    <label class="dropzone" data-dropzone>
+      <input id="f-cover" type="file" name="cover" accept="image/*" data-photo-input>
+      {{ icon('gift') }}<span><strong>Choisir une image</strong> ou la glisser ici</span><span class="dropzone__files" data-photo-names></span>
+    </label>
+    {% if errors.photo %}<p class="field__error">{{ errors.photo }}</p>{% endif %}
+  </div>
+  <label class="switch">
+    <input type="checkbox" name="published" {% if values.published == 1 or values.published == 'on' %}checked{% endif %}>
+    <span class="switch__track" aria-hidden="true"></span>
+    <span><strong>Publié</strong><small>Décochez pour garder l’article en brouillon.</small></span>
+  </label>
+  <div class="editor__bar">
+    <button class="btn" type="submit">Enregistrer {{ icon('check') }}</button>
+    <a class="btn btn--ghost" href="/admin/actualites">Annuler</a>
+  </div>
+</form>
+{% if post %}
+<section class="danger-zone">
+  <h2 class="label">Supprimer l’article</h2>
+  <form method="post" action="/admin/actualites/{{ post.id }}/supprimer">
+    <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+    <button class="btn btn--danger btn--small" type="submit" data-confirm="Supprimer définitivement cet article ?">Supprimer</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

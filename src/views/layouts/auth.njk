@@ -1,0 +1,26 @@
+{% from "partials/macros.njk" import icon %}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>{{ pageTitle }} · Espace bénévoles</title>
+  <link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/fonts.css">
+  <link rel="stylesheet" href="/css/core.css">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body class="auth">
+  {% include "partials/icons.njk" %}
+  <main class="auth-card">
+    <a class="auth-brand" href="/">
+      <svg aria-hidden="true"><use href="#i-sprig"></use></svg>
+      <span class="display">Refuge</span>
+      <span class="label">Espace bénévoles</span>
+    </a>
+    <div class="ornament" aria-hidden="true"><span class="ornament__diamond"></span></div>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

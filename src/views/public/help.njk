@@ -1,0 +1,77 @@
+{% extends "layouts/site.njk" %}
+{% from "partials/macros.njk" import icon, animalCard %}
+{% set pageTitle = 'Aider le refuge' %}
+
+{% block content %}
+<div class="section-inner">
+  <header class="page-head">
+    <h1 class="display">Aider le refuge</h1>
+    <div class="ornament" aria-hidden="true"><span class="ornament__diamond"></span></div>
+    <p class="lede">Notre équipe est petite : salariés et bénévoles comptent sur vous pour soigner, nourrir et promener les animaux en attendant leur famille.</p>
+  </header>
+
+  <section class="help-section" id="don" aria-labelledby="don-title">
+    <h2 class="display" id="don-title">Faire un don</h2>
+    <div class="prose">
+      <p>{{ settings.help.donation }}</p>
+      <p><strong>Par courrier :</strong> {{ settings.shelter.name }}, {{ settings.shelter.address }}, {{ settings.shelter.postcode }} {{ settings.shelter.city }}.</p>
+      <div class="btn-row">
+        {% if settings.shelter.donationUrl %}<a class="btn btn--sun" href="{{ settings.shelter.donationUrl }}" rel="noopener" target="_blank">Donner en ligne {{ icon('external') }}</a>{% endif %}
+        <a class="btn btn--ghost" href="/contact?sujet=don">Une question sur les dons</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="help-section" id="adhesion" aria-labelledby="adh-title">
+    <h2 class="display" id="adh-title">Adhérer</h2>
+    <div class="prose"><p>{{ settings.help.membership }}</p></div>
+  </section>
+
+  <section class="help-section" id="benevolat" aria-labelledby="ben-title">
+    <h2 class="display" id="ben-title">Devenir bénévole</h2>
+    <div class="prose">
+      <p>{{ settings.help.volunteering }}</p>
+      <div class="btn-row"><a class="btn" href="/contact?sujet=benevolat">Proposer mon aide {{ icon('arrow') }}</a></div>
+    </div>
+  </section>
+
+  <section class="help-section" id="accueil" aria-labelledby="fa-title">
+    <h2 class="display" id="fa-title">Famille d’accueil</h2>
+    <div class="prose">
+      <p>Nos chats grandissent dans des familles d’accueil, en attendant leur adoption. Vous leur offrez un foyer, du calme et beaucoup de câlins. Écrivez-nous pour connaître les conditions d’accueil.</p>
+      <div class="btn-row"><a class="btn" href="/contact?sujet=accueil">Devenir famille d’accueil {{ icon('arrow') }}</a></div>
+    </div>
+  </section>
+
+  <section class="help-section" id="nature" aria-labelledby="nat-title">
+    <h2 class="display" id="nat-title">Dons en nature</h2>
+    <div>
+      <div class="lists-2">
+        <div>
+          <h3 class="label">Pour les animaux</h3>
+          <ul class="tick-list">{% for item in settings.help.inKindAnimals %}<li>{{ icon('check') }}{{ item }}</li>{% endfor %}</ul>
+        </div>
+        <div>
+          <h3 class="label">Pour le refuge</h3>
+          <ul class="tick-list">{% for item in settings.help.inKindShelter %}<li>{{ icon('check') }}{{ item }}</li>{% endfor %}</ul>
+        </div>
+      </div>
+      {% if settings.help.extras %}<p class="included" style="margin-top: var(--space-5)">{{ settings.help.extras }}</p>{% endif %}
+    </div>
+  </section>
+
+  <section class="help-section" id="parrainer" aria-labelledby="sos-title">
+    <h2 class="display" id="sos-title">Parrainer un SOS</h2>
+    <div>
+      <p class="prose">Certains animaux ont besoin de soins coûteux ou attendent depuis longtemps. Vous pouvez participer à leurs frais : indiquez son nom avec votre don.</p>
+      {% if urgent | length %}
+        <div class="plate-grid" style="margin-top: var(--space-6)">
+          {% for animal in urgent %}{{ animalCard(animal, { index: loop.index0 }) }}{% endfor %}
+        </div>
+      {% else %}
+        <p class="empty-line">Aucun appel urgent en ce moment. Bonne nouvelle !</p>
+      {% endif %}
+    </div>
+  </section>
+</div>
+{% endblock %}

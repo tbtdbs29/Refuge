@@ -1,0 +1,32 @@
+{% extends "layouts/site.njk" %}
+{% from "partials/macros.njk" import icon %}
+{% set pageTitle = post.title %}
+{% set metaDescription = post.summary %}
+{% if post.coverUrl %}{% set ogImage = post.coverUrl %}{% endif %}
+
+{% block content %}
+<div class="section-inner">
+  <a class="back-link" href="/actualites">{{ icon('arrow-left') }} Toutes les actualités</a>
+  <article class="post-page">
+    <header class="post-page__head">
+      <h1 class="display">{{ post.title }}</h1>
+      <p class="label" style="color: var(--bruyere-deep)">{{ post.categoryLabel }} · {{ post.dateLabel }}</p>
+      {% if post.example %}<p class="example-note">Article d’exemple : il illustre le site en attendant les vraies nouvelles du refuge.</p>{% endif %}
+      <div class="ornament" aria-hidden="true"><span class="ornament__diamond"></span></div>
+    </header>
+    {% if post.coverUrl %}<figure class="post-page__cover"><img src="{{ post.coverUrl }}" alt=""></figure>{% endif %}
+    <div class="prose" style="margin-top: var(--space-6)">{{ post.bodyHtml | safe }}</div>
+  </article>
+  {% if more | length %}
+    <section aria-labelledby="more-title" style="padding-bottom: var(--space-6)">
+      <div class="section-head section-head--compact"><h2 class="display section-title" id="more-title" style="font-size: var(--step-3)">À lire aussi</h2></div>
+      <ul class="news-list">
+        {% for item in more %}
+          <li><a class="news-row" href="{{ item.url }}"><span class="news-row__title display">{{ item.title }}</span><span class="news-row__meta label">{{ item.categoryLabel }} · {{ item.dateLabel }}</span></a></li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+</div>
+{% if currentUser %}<a class="btn btn--sun admin-edit" href="/admin/actualites/{{ post.id }}">Modifier l’article</a>{% endif %}
+{% endblock %}

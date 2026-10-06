@@ -1,0 +1,129 @@
+{
+  "title": "Choisir l'univers visuel du Refuge",
+  "question": "Le tirage propose « Marinière & pavillons ». Le garder, prendre une alternative, ou relancer.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Marinière & pavillons",
+      "kicker": "THE ROLL",
+      "lineage": "Rayures de marinière bretonne + pavillons du code international des signaux maritimes",
+      "thesis": "Le refuge comme un port du Finistère : chaque animal hisse son pavillon (à l'adoption, réservé, SOS), sur un tissage de rayures marine.",
+      "palette": ["#1d2f6f", "#f7f3ea", "#e63b2e", "#f6c12c", "#2f8f6b"],
+      "materials": ["jersey rayé tissé", "pavillons de signaux en toile", "cordage et oeillets"],
+      "viewport": "Bande de rayures marine qui ondule comme un pavillon au vent ; nom d'un animal en très grand, son pavillon de statut hissé, bouton « Voir les animaux » et « Aider le refuge ».",
+      "risk": "Peut virer au souvenir touristique si les rayures servent de décor au lieu de structurer la page.",
+      "raised": [
+        {"from": "challenger-fight-poster", "raise": "Les noms des animaux sont composés à l'échelle d'affiche, ils remplissent leur largeur."},
+        {"from": "challenger-nixie", "raise": "Un seul accent chaud réservé : le rouge signal ne sert qu'au SOS et à l'action principale."},
+        {"from": "challenger-hypercard", "raise": "Lire et éditer sont deux modes du même objet : connecté, chaque fiche publique a son bouton « Modifier »."},
+        {"from": "challenger-cloud-quarry", "raise": "Les sections s'empilent comme des laizes de tissu coupées nettes, avec des respirations franches entre elles."}
+      ]
+    },
+    {
+      "id": "model-pick",
+      "label": "Faïence de Quimper",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "Faïence peinte à la main de Quimper (bols à prénom, assiettes à frise)",
+      "thesis": "Chaque animal a son bol à prénom peint à la main ; la page est un vaisselier de faïence bleue et jaune.",
+      "palette": ["#f4efe2", "#1f4fa3", "#f2b705", "#c8402f", "#3f8a4f"],
+      "materials": ["émail blanc craquelé", "touches de pinceau cobalt", "frises florales"],
+      "viewport": "Un grand bol peint au nom de l'animal à la une, frise florale animée qui se dessine au pinceau, actions en dessous.",
+      "risk": "C'est la direction la plus attendue pour la Bretagne ; risque de folklore si la frise prend le pas sur les animaux."
+    },
+    {
+      "id": "challenger-sapeur",
+      "label": "Planche de portrait",
+      "verdict": "competitive",
+      "lineage": "Portraits en pied sur fond peint, légende réglée sous le cadre",
+      "thesis": "Chaque animal posé en pied sur un fond uni de couleur, ses traits de caractère nommés dans une légende réglée.",
+      "palette": ["#f2a65a", "#2b6f77", "#f6efe4", "#3b2a4a"],
+      "materials": ["fond de studio peint", "cadre imprimé fin", "légende filetée"],
+      "viewport": "Un animal en pied sur un aplat coloré, la légende « OK chats · Pas d'appartement · Câlin » reliée par des filets.",
+      "case": "Très clair pour lire le caractère d'un animal ; moins d'ancrage local que la marinière.",
+      "risk": "Dépend fortement de belles photos détourées, que le refuge n'a pas encore.",
+      "hero": "https://impeccable.style/worlds/cards/pop-culture-shelf-sapeur-portrait-plate-hero.webp"
+    },
+    {
+      "id": "challenger-fight-poster",
+      "label": "Affiche de boxe",
+      "verdict": "declined",
+      "lineage": "Affiches de combat en capitales slab",
+      "palette": ["#f3ead8", "#151515", "#d9a520"],
+      "materials": ["papier journal", "encre slab"],
+      "thesis": "Deux noms qui se percutent autour d'un VS.",
+      "viewport": "Deux animaux face à face.",
+      "case": "La confrontation contredit l'ambiance mignonne.",
+      "risk": "Agressif.",
+      "kept": "Le courage typographique : noms à l'échelle d'affiche.",
+      "hero": "https://impeccable.style/worlds/cards/posters-covers-sleeves-fight-poster-hero.webp"
+    },
+    {
+      "id": "challenger-nixie",
+      "label": "Compteur à tubes Nixie",
+      "verdict": "declined",
+      "lineage": "Compteurs de laboratoire",
+      "palette": ["#121212", "#ff7a1a", "#8a8a8a"],
+      "materials": ["verre", "acier noirci"],
+      "thesis": "Chaque chiffre est une lueur orange.",
+      "viewport": "Un compteur d'adoptions.",
+      "case": "Froid et technique, aucune identification du public.",
+      "risk": "Hors sujet.",
+      "kept": "Un seul accent chaud réservé.",
+      "hero": "https://impeccable.style/worlds/cards/signals-instruments-nixie-laboratory-counter-hero.webp"
+    },
+    {
+      "id": "challenger-hypercard",
+      "label": "Pile HyperCard",
+      "verdict": "declined",
+      "lineage": "HyperCard 1 bit",
+      "palette": ["#ffffff", "#000000"],
+      "materials": ["tramage", "boutons peints"],
+      "thesis": "Lire et créer avec le même outil.",
+      "viewport": "Une carte noir et blanc.",
+      "case": "Sans couleur ni chaleur pour un refuge.",
+      "risk": "Rétro-gadget.",
+      "kept": "Lecture et édition dans le même objet.",
+      "hero": "https://impeccable.style/worlds/cards/medium-native-hypercard-stack-shoebox-hero.webp"
+    },
+    {
+      "id": "challenger-chromatophore",
+      "label": "Peau de céphalopode",
+      "verdict": "declined",
+      "lineage": "Chromatophores",
+      "palette": ["#efe4d2", "#8a3b22", "#2bb3a3"],
+      "materials": ["shaders", "texture vivante"],
+      "thesis": "Une peau qui devient écran.",
+      "viewport": "Motifs mouvants.",
+      "case": "Étrange, peu lisible pour adopter.",
+      "risk": "Inquiétant.",
+      "kept": "Le motif change d'état selon le contexte.",
+      "hero": "https://impeccable.style/worlds/cards/reefs-bioluminescent-nocturnal-chromatophore-skin-language-hero.webp"
+    },
+    {
+      "id": "challenger-cloud-quarry",
+      "label": "Carrière de nuages",
+      "verdict": "declined",
+      "lineage": "Monde surréaliste",
+      "palette": ["#f7f8fb", "#6fa8dc", "#7a7f8c"],
+      "materials": ["blocs de nuage", "vides bleus"],
+      "thesis": "Découper la météo en blocs.",
+      "viewport": "Falaise de nuages.",
+      "case": "Poétique mais sans rapport avec l'adoption.",
+      "risk": "Abstrait.",
+      "kept": "Sections empilées comme des blocs coupés nets.",
+      "hero": "https://impeccable.style/worlds/cards/dream-surreal-impossible-worlds-cloud-quarry-hero.webp"
+    }
+  ],
+  "reroll": {"registers": ["safer", "bolder"]},
+  "buildPath": {"value": "code"},
+  "canon": true,
+  "canonCard": {
+    "label": "Le standard des refuges",
+    "thesis": "Ce que publient les sites de refuges, exécuté avec soin : grande photo, cartes animaux arrondies, pastel.",
+    "palette": ["#fffaf3", "#2d2a26", "#f28c38"],
+    "materials": ["grille propre", "photos d'animaux", "empreintes de pattes"],
+    "viewport": "Grande photo d'un chien, titre « Adoptez », grille de cartes.",
+    "risk": "Indiscernable des autres refuges, par construction."
+  },
+  "steer": true
+}

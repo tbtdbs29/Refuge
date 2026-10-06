@@ -1,0 +1,28 @@
+{% extends "layouts/site.njk" %}
+{% from "partials/macros.njk" import icon, plate %}
+{% set pageTitle = 'Ils ont trouvé une famille' %}
+
+{% block content %}
+<div class="section-inner">
+  <header class="page-head">
+    <h1 class="display">Ils ont trouvé une famille</h1>
+    <div class="ornament" aria-hidden="true"><span class="ornament__diamond"></span></div>
+    <p class="lede">{{ settings.shelter.intro }}</p>
+  </header>
+  {% if animals | length %}
+    <ul class="adopted-strip" style="grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: var(--space-6);">
+      {% for animal in animals %}
+        <li class="reveal" style="--reveal-delay: {{ (loop.index0 % 5) * 0.05 }}s">
+          <a href="{{ animal.url }}" class="adopted-strip__item">
+            {{ plate(animal, { size: 'mini', noCaption: true }) }}
+            <span class="adopted-strip__name display">{{ animal.name }}</span>
+            <span class="label" style="color: var(--ink-2); font-weight: 500">{{ animal.speciesLabel }}{% if animal.adopted_at %} · {{ animal.adopted_at | date }}{% endif %}</span>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty-line">L’album se remplit à chaque adoption.</p>
+  {% endif %}
+</div>
+{% endblock %}

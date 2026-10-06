@@ -1,0 +1,85 @@
+{% extends "layouts/site.njk" %}
+{% from "partials/macros.njk" import icon, field, textarea, plate %}
+{% set pageTitle = 'Contact' %}
+
+{% block content %}
+<div class="section-inner">
+  <header class="page-head">
+    <h1 class="display">Nous écrire</h1>
+    <div class="ornament" aria-hidden="true"><span class="ornament__diamond"></span></div>
+    <p class="lede">Une adoption, une famille d’accueil, un coup de main, un animal trouvé : nous lisons chaque message et répondons dès que possible.</p>
+  </header>
+
+  <div class="contact-layout">
+    <div>
+      {% if sent %}
+        <div class="sent" role="status">
+          <h2 class="display">Merci, votre message est bien parti</h2>
+          <p>Un membre de l’équipe vous répondra par email ou par téléphone. En attendant, les animaux vous attendent !</p>
+          <a class="btn" href="/animaux">Revoir les animaux {{ icon('arrow') }}</a>
+        </div>
+      {% else %}
+        {% if errors | length %}
+          <div class="notice notice--error" role="alert" style="margin-bottom: var(--space-5)">
+            <svg aria-hidden="true"><use href="#i-alert"></use></svg>
+            <p>Quelques informations manquent ou sont à corriger : elles sont signalées ci-dessous.</p>
+          </div>
+        {% endif %}
+        <form class="form-grid" method="post" action="/contact" novalidate>
+          <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+          <div class="honeypot" aria-hidden="true"><label>Ne pas remplir <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+
+          {% if linkedAnimal %}
+            <input type="hidden" name="animal_id" value="{{ linkedAnimal.id }}">
+            <div class="linked-animal">
+              {{ plate(linkedAnimal, { size: 'mini', noCaption: true }) }}
+              <p>Votre message concerne<strong>{{ linkedAnimal.name }}</strong>{{ linkedAnimal.speciesLabel }}{% if linkedAnimal.age %} · {{ linkedAnimal.age }}{% endif %}</p>
+            </div>
+          {% endif %}
+
+          <fieldset class="field">
+            <legend>Votre message concerne</legend>
+            <div class="topic-choices">
+              {% for key, text in labels.MESSAGE_TOPICS %}
+                <label><input type="radio" name="topic" value="{{ key }}" {% if values.topic == key %}checked{% endif %}><span>{{ text }}</span></label>
+              {% endfor %}
+            </div>
+          </fieldset>
+
+          <div class="form-grid form-grid--2">
+            {{ field('name', 'Votre nom', values, errors, 'text', '', 'autocomplete="name"', true) }}
+            {{ field('phone', 'Téléphone', values, errors, 'tel', '', 'autocomplete="tel"') }}
+          </div>
+          {{ field('email', 'Email', values, errors, 'email', '', 'autocomplete="email"', true) }}
+
+          <div data-home-field>
+            {{ textarea('home', 'Votre cadre de vie', values, errors, 'Maison ou appartement, jardin clos, enfants (âges), autres animaux, temps d’absence dans la journée…', 4) }}
+          </div>
+          {{ textarea('body', 'Votre message', values, errors, '', 6, true) }}
+
+          <div class="field{% if errors.consent %} has-error{% endif %}">
+            <label class="check" style="text-transform: none; letter-spacing: 0; font-family: var(--font-body); font-weight: 400; font-size: 0.98rem">
+              <input type="checkbox" name="consent" value="on" {% if values.consent %}checked{% endif %}>
+              J’accepte que le refuge conserve ces informations pour répondre à ma demande.
+            </label>
+            {% if errors.consent %}<p class="field__error">{{ errors.consent }}</p>{% endif %}
+          </div>
+
+          <div class="btn-row"><button class="btn" type="submit">Envoyer mon message {{ icon('arrow') }}</button></div>
+        </form>
+      {% endif %}
+    </div>
+
+    <aside class="callout contact-card" aria-label="Coordonnées">
+      <h2 class="display">Le refuge</h2>
+      <ul>
+        <li>{{ icon('pin') }}<span>{{ settings.shelter.address }}<br>{{ settings.shelter.postcode }} {{ settings.shelter.city }}</span></li>
+        <li>{{ icon('clock') }}<span>{{ settings.shelter.hours | nbsp }}</span></li>
+        <li>{{ icon('phone') }}<a href="tel:{{ settings.shelter.phone | tel }}">{{ settings.shelter.phone }}</a></li>
+        <li>{{ icon('mail') }}<a href="mailto:{{ settings.shelter.email }}">{{ settings.shelter.email }}</a></li>
+      </ul>
+      <a class="arrow-link" href="https://www.openstreetmap.org/search?query={{ (settings.shelter.address + ' ' + settings.shelter.postcode + ' ' + settings.shelter.city) | urlencode }}" rel="noopener" target="_blank">Voir le plan {{ icon('external') }}</a>
+    </aside>
+  </div>
+</div>
+{% endblock %}

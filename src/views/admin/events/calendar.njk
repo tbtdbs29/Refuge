@@ -1,0 +1,71 @@
+{% extends "layouts/admin.njk" %}
+{% from "partials/macros.njk" import icon %}
+{% set pageTitle = 'Agenda' %}
+
+{% block header %}
+<header class="admin-head">
+  <div>
+    <h1 class="display">Agenda</h1>
+    <p class="admin-head__sub">Cliquez sur un jour pour y ajouter un événement. Les événements « internes » ne sont visibles que des bénévoles.</p>
+  </div>
+  <a class="btn" href="/admin/agenda/nouveau">{{ icon('calendar') }} Nouvel événement</a>
+</header>
+{% endblock %}
+
+{% block content %}
+<div class="agenda-admin">
+  <section class="box box--flush" aria-labelledby="month-title">
+    <div class="month-bar">
+      <a class="icon-btn" href="/admin/agenda?mois={{ month.prev.year }}-{{ month.prev.month | pad }}" aria-label="Mois précédent">{{ icon('chev-left') }}</a>
+      <h2 class="display" id="month-title">{{ month.label }}</h2>
+      <a class="icon-btn" href="/admin/agenda?mois={{ month.next.year }}-{{ month.next.month | pad }}" aria-label="Mois suivant">{{ icon('chev-right') }}</a>
+    </div>
+    <div class="cal" role="grid" aria-labelledby="month-title">
+      <div class="cal__row cal__row--head" role="row">
+        {% for day in ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'] %}<span role="columnheader">{{ day }}</span>{% endfor %}
+      </div>
+      {% for week in month.weeks %}
+        <div class="cal__row" role="row">
+          {% for cell in week %}
+            {% if cell %}
+              <div class="cal__cell{% if cell.isToday %} is-today{% endif %}{% if cell.isPast %} is-past{% endif %}" role="gridcell">
+                <a class="cal__add" href="/admin/agenda/nouveau?date={{ cell.key }}" aria-label="Ajouter un événement le {{ cell.day }} {{ month.label }}">
+                  <span class="cal__num">{{ cell.day }}</span>{{ icon('close', 'cal__plus') }}
+                </a>
+                {% for event in cell.events %}
+                  <a class="cal-pill cal-pill--{{ event.category }}{% if event.visibility == 'interne' %} is-internal{% endif %}" href="/admin/agenda/{{ event.id }}" title="{{ event.title }}">
+                    {% if not event.all_day and event.startDay == cell.key %}<b>{{ event.starts_at.slice(11, 16) }}</b> {% endif %}{{ event.title }}
+                  </a>
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="cal__cell is-empty" role="gridcell"></div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+    <ul class="legend">
+      {% for key, text in labels.EVENT_CATEGORIES %}<li class="cal-pill--{{ key }}"><span></span>{{ text }}</li>{% endfor %}
+      <li><span class="legend__internal"></span>Interne</li>
+    </ul>
+  </section>
+
+  <section class="box" aria-labelledby="up-title">
+    <div class="box__head"><h2 class="label" id="up-title">À venir</h2></div>
+    {% if upcoming | length %}
+      <ul class="row-list">
+        {% for event in upcoming %}
+          <li><a href="/admin/agenda/{{ event.id }}" class="row-link">
+            <span class="mini-date mini-date--{{ event.category }}"><strong>{{ event.day }}</strong>{{ event.monthShort }}</span>
+            <span class="row-link__main"><strong>{{ event.title }}</strong><small>{{ event.categoryLabel }} · {{ event.timeLabel }}</small></span>
+            {% if event.visibility == 'interne' %}<span class="tag">Interne</span>{% endif %}
+          </a></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="box__empty">Aucun événement à venir.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

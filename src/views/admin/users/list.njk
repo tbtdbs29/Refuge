@@ -1,0 +1,29 @@
+{% extends "layouts/admin.njk" %}
+{% from "partials/macros.njk" import icon %}
+{% set pageTitle = 'Comptes bénévoles' %}
+
+{% block header %}
+<header class="admin-head">
+  <div><h1 class="display">Comptes bénévoles</h1><p class="admin-head__sub">Les éditeurs gèrent les animaux, l’agenda, les actualités, les messages et les réglages. Les administrateurs gèrent en plus les comptes.</p></div>
+  <a class="btn" href="/admin/comptes/nouveau">{{ icon('hands') }} Nouveau compte</a>
+</header>
+{% endblock %}
+
+{% block content %}
+<div class="table-wrap">
+  <table class="table">
+    <thead><tr><th scope="col">Nom</th><th scope="col">Email</th><th scope="col">Rôle</th><th scope="col">Dernière connexion</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+    <tbody>
+      {% for user in users %}
+        <tr>
+          <td><span class="table__person"><span class="avatar" aria-hidden="true">{{ user.name | first | upper }}</span><strong>{{ user.name }}</strong>{% if user.id == currentUser.id %} <span class="tag">Vous</span>{% endif %}</span></td>
+          <td>{{ user.email }}</td>
+          <td>{{ labels.ROLES[user.role] }}</td>
+          <td>{{ (user.last_login_at | stamp) if user.last_login_at else 'Jamais' }}</td>
+          <td class="table__actions"><a class="btn btn--ghost btn--small" href="/admin/comptes/{{ user.id }}">Modifier</a></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

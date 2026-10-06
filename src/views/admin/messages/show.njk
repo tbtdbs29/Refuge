@@ -1,0 +1,54 @@
+{% extends "layouts/admin.njk" %}
+{% from "partials/macros.njk" import icon %}
+{% set pageTitle = 'Message de ' + message.name %}
+
+{% block header %}
+<header class="admin-head">
+  <div>
+    <a class="back-link" href="/admin/messages">{{ icon('arrow-left') }} Messages</a>
+    <h1 class="display">{{ message.name }}</h1>
+    <p class="admin-head__sub"><span class="tag tag--{{ message.topic }}">{{ message.topicLabel }}</span> Reçu le {{ message.dateLabel }} · {{ message.statusLabel }}</p>
+  </div>
+  <div class="btn-row">
+    <a class="btn" href="mailto:{{ message.email }}?subject={{ ('Re: ' + message.topicLabel + (' – ' + message.animal_name if message.animal_name else '')) | urlencode }}">{{ icon('mail') }} Répondre par email</a>
+    {% if message.phone %}<a class="btn btn--ghost" href="tel:{{ message.phone | tel }}">{{ icon('phone') }} {{ message.phone }}</a>{% endif %}
+  </div>
+</header>
+{% endblock %}
+
+{% block content %}
+<div class="message-layout">
+  <article class="form-card">
+    {% if message.animal_name %}
+      <p class="message-animal">Concerne <a href="/animaux/{{ message.animal_slug }}" target="_blank" rel="noopener">{{ message.animal_name }} {{ icon('external') }}</a></p>
+    {% endif %}
+    <h2 class="label">Message</h2>
+    <div class="prose">{{ message.bodyHtml | safe }}</div>
+    {% if message.home %}
+      <h2 class="label" style="margin-top: var(--space-6)">Cadre de vie</h2>
+      <div class="prose">{{ message.homeHtml | safe }}</div>
+    {% endif %}
+  </article>
+  <aside class="form-card message-side">
+    <dl class="kv">
+      <div><dt>Email</dt><dd><a href="mailto:{{ message.email }}">{{ message.email }}</a></dd></div>
+      <div><dt>Téléphone</dt><dd>{{ message.phone or '—' }}</dd></div>
+    </dl>
+    <div class="message-actions">
+      {% for target in ['traite', 'archive', 'nouveau'] %}
+        {% if message.status != target %}
+          <form method="post" action="/admin/messages/{{ message.id }}/statut">
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+            <input type="hidden" name="status" value="{{ target }}">
+            <button class="btn {{ '' if target == 'traite' else 'btn--ghost' }} btn--small" type="submit">{{ { traite: 'Marquer comme traité', archive: 'Archiver', nouveau: 'Remettre en « nouveau »' }[target] }}</button>
+          </form>
+        {% endif %}
+      {% endfor %}
+      <form method="post" action="/admin/messages/{{ message.id }}/supprimer">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+        <button class="btn btn--danger btn--small" type="submit" data-confirm="Supprimer définitivement ce message ?">Supprimer</button>
+      </form>
+    </div>
+  </aside>
+</div>
+{% endblock %}

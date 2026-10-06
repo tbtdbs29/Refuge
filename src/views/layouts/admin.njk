@@ -1,0 +1,73 @@
+{% from "partials/macros.njk" import icon, flashNotice %}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>{{ pageTitle or 'Back office' }} · Espace bénévoles</title>
+  <link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/fonts.css">
+  <link rel="stylesheet" href="/css/core.css">
+  <link rel="stylesheet" href="/css/admin.css">
+  <script src="/js/early.js"></script>
+  <script src="/js/admin.js" defer></script>
+</head>
+<body class="admin">
+  <a class="skip-link" href="#contenu">Aller au contenu</a>
+  {% include "partials/icons.njk" %}
+  <div class="admin-shell">
+    <header class="admin-rail">
+      <div class="admin-rail__top">
+        <a class="admin-brand" href="/admin">
+          <svg aria-hidden="true"><use href="#i-sprig"></use></svg>
+          <span><span class="display">Refuge</span><span class="label">Espace bénévoles</span></span>
+        </a>
+        <button class="rail__toggle" type="button" aria-expanded="false" aria-controls="admin-nav" data-nav-toggle>
+          <span class="visually-hidden">Menu</span>{{ icon('menu', 'rail__toggle-open') }}{{ icon('close', 'rail__toggle-close') }}
+        </button>
+      </div>
+      <nav class="admin-nav" id="admin-nav" aria-label="Back office" data-nav>
+        {% set items = [
+          ['/admin', 'Tableau de bord', 'house'],
+          ['/admin/animaux', 'Animaux', 'dog'],
+          ['/admin/agenda', 'Agenda', 'calendar'],
+          ['/admin/actualites', 'Actualités', 'doc'],
+          ['/admin/messages', 'Messages', 'mail'],
+          ['/admin/reglages', 'Réglages du site', 'sprig']
+        ] %}
+        <ul>
+          {% for item in items %}
+            {% set active = path == item[0] or (item[0] != '/admin' and path.startsWith(item[0])) %}
+            <li>
+              <a href="{{ item[0] }}" {% if active %}aria-current="page"{% endif %}>
+                {{ icon(item[2]) }}<span>{{ item[1] }}</span>
+                {% if item[0] == '/admin/messages' and unreadMessages %}<span class="badge" aria-label="{{ unreadMessages }} nouveaux">{{ unreadMessages }}</span>{% endif %}
+              </a>
+            </li>
+          {% endfor %}
+          {% if currentUser.role == 'admin' %}
+            <li><a href="/admin/comptes" {% if path.startsWith('/admin/comptes') %}aria-current="page"{% endif %}>{{ icon('hands') }}<span>Comptes bénévoles</span></a></li>
+          {% endif %}
+        </ul>
+        <div class="admin-nav__foot">
+          <a class="admin-nav__site" href="/" target="_blank" rel="noopener">{{ icon('external') }}<span>Voir le site</span></a>
+          <a class="admin-nav__me" href="/admin/mon-compte" {% if path == '/admin/mon-compte' %}aria-current="page"{% endif %}>
+            <span class="avatar" aria-hidden="true">{{ currentUser.name | first | upper }}</span>
+            <span><strong>{{ currentUser.name }}</strong><small>{{ labels.ROLES[currentUser.role] }}</small></span>
+          </a>
+          <form method="post" action="/admin/deconnexion">
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+            <button class="btn btn--ghost btn--small admin-nav__logout" type="submit">Se déconnecter</button>
+          </form>
+        </div>
+      </nav>
+    </header>
+    <main class="admin-main" id="contenu" tabindex="-1">
+      {% block header %}{% endblock %}
+      {% if flash %}<div class="admin-flash">{{ flashNotice(flash) }}</div>{% endif %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{% extends "layouts/auth.njk" %}
+{% from "partials/macros.njk" import field, icon %}
+{% set pageTitle = 'Connexion' %}
+{% block content %}
+<h1 class="display auth-title">Bonjour !</h1>
+<p class="auth-text">Connectez-vous pour gérer les animaux, l’agenda et les actualités.</p>
+{% if errors.form %}<div class="notice notice--error" role="alert"><svg aria-hidden="true"><use href="#i-alert"></use></svg><p>{{ errors.form }}</p></div>{% endif %}
+<form class="form-stack" method="post" action="/admin/connexion">
+  <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+  <input type="hidden" name="next" value="{{ next }}">
+  {{ field('email', 'Email', values, errors, 'email', '', 'autocomplete="username" autofocus', true) }}
+  {{ field('password', 'Mot de passe', {}, errors, 'password', '', 'autocomplete="current-password"', true) }}
+  <button class="btn" type="submit">Se connecter {{ icon('arrow') }}</button>
+</form>
+<p class="auth-foot">Mot de passe oublié ? Demandez à un administrateur du refuge de le réinitialiser.</p>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "layouts/admin.njk" %}
+{% from "partials/macros.njk" import icon, plate %}
+{% set pageTitle = 'Tableau de bord' %}
+
+{% block header %}
+<header class="admin-head">
+  <div>
+    <h1 class="display">Bonjour {{ currentUser.name.split(' ')[0] }}</h1>
+    <p class="admin-head__sub">Voici ce qui se passe au refuge aujourd’hui.</p>
+  </div>
+  <div class="btn-row">
+    <a class="btn" href="/admin/animaux/nouveau">{{ icon('dog') }} Nouvel animal</a>
+    <a class="btn btn--ghost" href="/admin/agenda/nouveau">{{ icon('calendar') }} Nouvel événement</a>
+  </div>
+</header>
+{% endblock %}
+
+{% block content %}
+<ul class="tally" aria-label="Chiffres clés">
+  <li><a class="tally__item" href="/admin/animaux?statut=disponible"><span class="label">À l’adoption</span><span class="tally__value">{{ stats.available }} fiche{{ 's' if stats.available > 1 }}</span></a></li>
+  <li><a class="tally__item" href="/admin/animaux?statut=reserve"><span class="label">Réservés</span><span class="tally__value">{{ stats.reserved }} fiche{{ 's' if stats.reserved > 1 }}</span></a></li>
+  <li><a class="tally__item" href="/admin/animaux?statut=adopte"><span class="label">Album des adoptés</span><span class="tally__value">{{ stats.adopted }} fiche{{ 's' if stats.adopted > 1 }}</span></a></li>
+  <li><a class="tally__item{% if messageCounts.nouveau %} tally__item--alert{% endif %}" href="/admin/messages"><span class="label">Messages à traiter</span><span class="tally__value">{{ messageCounts.nouveau }} nouveau{{ 'x' if messageCounts.nouveau > 1 }}</span></a></li>
+</ul>
+
+<div class="dash-grid">
+  <section class="box" aria-labelledby="dash-msg">
+    <div class="box__head"><h2 class="label" id="dash-msg">{{ icon('mail') }} Nouveaux messages</h2><a class="arrow-link" href="/admin/messages">Tous {{ icon('arrow') }}</a></div>
+    {% if messages | length %}
+      <ul class="row-list">
+        {% for message in messages %}
+          <li><a href="/admin/messages/{{ message.id }}" class="row-link">
+            <span class="tag tag--{{ message.topic }}">{{ message.topicLabel }}</span>
+            <span class="row-link__main"><span><strong>{{ message.name }}</strong>{% if message.animal_name %} · {{ message.animal_name }}{% endif %}</span><small>{{ message.body | truncate(90, true, '…') }}</small></span>
+            <span class="row-link__date">{{ message.dateLabel }}</span>
+          </a></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="box__empty">Aucun nouveau message. Tout est à jour !</p>
+    {% endif %}
+  </section>
+
+  <section class="box" aria-labelledby="dash-events">
+    <div class="box__head"><h2 class="label" id="dash-events">{{ icon('calendar') }} Prochains rendez-vous</h2><a class="arrow-link" href="/admin/agenda">Agenda {{ icon('arrow') }}</a></div>
+    {% if events | length %}
+      <ul class="row-list">
+        {% for event in events %}
+          <li><a href="/admin/agenda/{{ event.id }}" class="row-link">
+            <span class="mini-date mini-date--{{ event.category }}"><strong>{{ event.day }}</strong>{{ event.monthShort }}</span>
+            <span class="row-link__main"><strong>{{ event.title }}</strong><small>{{ event.timeLabel }}{% if event.location %} · {{ event.location }}{% endif %}</small></span>
+            {% if event.visibility == 'interne' %}<span class="tag">Interne</span>{% endif %}
+          </a></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="box__empty">Rien de prévu. <a href="/admin/agenda/nouveau">Ajouter un événement</a></p>
+    {% endif %}
+  </section>
+
+  <section class="box box--wide" aria-labelledby="dash-photo">
+    <div class="box__head"><h2 class="label" id="dash-photo">{{ icon('alert') }} À compléter : fiches sans photo</h2><a class="arrow-link" href="/admin/animaux">Tous les animaux {{ icon('arrow') }}</a></div>
+    {% if withoutPhoto | length %}
+      <p class="box__hint">Une vraie photo multiplie les chances d’adoption. Ajoutez-en une en ouvrant la fiche.</p>
+      <ul class="mini-plates">
+        {% for animal in withoutPhoto %}
+          <li><a href="/admin/animaux/{{ animal.id }}#photos">{{ plate(animal, { size: 'mini', noCaption: true }) }}<span>{{ animal.name }}</span></a></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="box__empty">Toutes les fiches ont une photo. Bravo !</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

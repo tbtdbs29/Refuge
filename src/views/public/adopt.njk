@@ -1,0 +1,83 @@
+{% extends "layouts/site.njk" %}
+{% from "partials/macros.njk" import icon %}
+{% set pageTitle = 'Adopter : démarches et tarifs' %}
+
+{% macro feeTable(title, rows, included) %}
+<div>
+  <table class="fee-table">
+    <caption>{{ title }}</caption>
+    <thead><tr><th scope="col" class="label">Âge ou situation</th><td class="label">Frais</td></tr></thead>
+    <tbody>
+      {% for row in rows %}
+        <tr><th scope="row">{{ row.label }}{% if row.note %}<small>{{ row.note }}</small>{% endif %}</th><td>{{ row.price }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if included %}<p class="included"><strong>Compris :</strong> {{ included }}</p>{% endif %}
+</div>
+{% endmacro %}
+
+{% block content %}
+<div class="section-inner">
+  <header class="page-head">
+    <h1 class="display">Adopter</h1>
+    <div class="ornament" aria-hidden="true"><span class="ornament__diamond"></span></div>
+    <p class="lede">Adopter, c’est s’engager pour toute la vie d’un animal. Nous prenons le temps de trouver la bonne famille pour chacun : voici comment cela se passe.</p>
+  </header>
+
+  <ol class="steps">
+    <li class="step">
+      <span class="step__num display">1</span>
+      <h2 class="label">Choisir et nous écrire</h2>
+      <p>Parcourez les fiches, puis contactez-nous en décrivant votre foyer : enfants, autres animaux, logement, jardin, temps d’absence.</p>
+    </li>
+    <li class="step">
+      <span class="step__num display">2</span>
+      <h2 class="label">Rencontrer l’animal</h2>
+      <p>Les chiens et les NAC se rencontrent au refuge, aux heures d’ouverture. Les chats vivent en famille d’accueil : la demande se fait par email.</p>
+    </li>
+    <li class="step">
+      <span class="step__num display">3</span>
+      <h2 class="label">Signer le certificat</h2>
+      <p>Le certificat d’engagement et de connaissance doit être signé au moins 7 jours avant l’adoption.</p>
+    </li>
+    <li class="step">
+      <span class="step__num display">4</span>
+      <h2 class="label">L’accueillir chez vous</h2>
+      <p>Vous repartez avec votre compagnon, son carnet de santé et nos conseils. Donnez-nous de ses nouvelles !</p>
+    </li>
+  </ol>
+
+  <section class="help-section" id="certificat" aria-labelledby="cert-title" style="margin-top: var(--space-8)">
+    <h2 class="display" id="cert-title">Le certificat d’engagement</h2>
+    <div class="prose">
+      <p>Depuis le décret du 18 juillet 2022, applicable au 1<sup>er</sup> octobre 2022, le certificat d’engagement et de connaissance est <strong>obligatoire pour tout le monde</strong>, que vous adoptiez auprès d’un refuge ou d’un particulier.</p>
+      <ul>
+        <li>Il concerne les <strong>chiens, chats, lapins et furets</strong>.</li>
+        <li>Il doit être signé <strong>au moins 7 jours avant</strong> l’adoption.</li>
+        <li>Il peut vous être délivré par une personne titulaire de l’ACACED (ou équivalent) ou par un vétérinaire.</li>
+        <li>Il est à <strong>conserver à vie</strong> : il vous sera demandé pour toute nouvelle adoption. Venez avec l’original et une copie, que nous conserverons.</li>
+      </ul>
+      <p>Une question ? <a href="/contact?sujet=adoption">Écrivez-nous</a> ou appelez le <a href="tel:{{ settings.shelter.phone | tel }}">{{ settings.shelter.phone }}</a>.</p>
+    </div>
+  </section>
+
+  <section class="help-section" id="tarifs" aria-labelledby="fees-title">
+    <div>
+      <h2 class="display" id="fees-title">Les tarifs d’adoption</h2>
+      <p class="lede" style="margin-top: var(--space-4)">Les frais d’adoption ne paient pas l’animal : ils couvrent une partie des soins reçus au refuge.</p>
+    </div>
+    <div class="fee-tables">
+      {{ feeTable('Chiens', settings.fees.dogs, settings.fees.dogsIncluded) }}
+      {{ feeTable('Chats', settings.fees.cats, settings.fees.catsIncluded) }}
+      {{ feeTable('Autres animaux', settings.fees.others, '') }}
+      <div class="callout">
+        <h3 class="display">Bon à savoir</h3>
+        <p>{{ settings.fees.breedNote }}</p>
+        <p style="margin-top: var(--space-3)">Pour les animaux de plus de 10 ans, le contrat doyen avec 30 Millions d’Amis réduit les frais à 50 €.</p>
+        <a class="arrow-link" href="/animaux">Voir les animaux {{ icon('arrow') }}</a>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "layouts/site.njk" %}
+{% set pageTitle = 'Mentions légales' %}
+{% block content %}
+<div class="section-inner legal">
+  <header class="page-head"><h1 class="display">Mentions légales</h1></header>
+  <div class="prose">
+    <h2 class="display">Éditeur</h2>
+    <p>{{ settings.shelter.name }}, association de protection animale.<br>{{ settings.shelter.address }}, {{ settings.shelter.postcode }} {{ settings.shelter.city }}.<br>Téléphone : {{ settings.shelter.phone }} · Email : {{ settings.shelter.email }}</p>
+    <h2 class="display">Données personnelles</h2>
+    <p>Les informations envoyées par le formulaire de contact servent uniquement à répondre à votre demande. Elles ne sont ni vendues ni transmises à des tiers. Vous pouvez demander leur consultation ou leur suppression en écrivant à {{ settings.shelter.email }}.</p>
+    <h2 class="display">Cookies</h2>
+    <p>Ce site n’utilise aucun cookie de mesure d’audience ni de publicité. Un cookie technique est utilisé uniquement pour sécuriser les formulaires et l’espace bénévoles. Vos coups de cœur sont enregistrés sur votre appareil seulement.</p>
+    <h2 class="display">Photos</h2>
+    <p>Les photos des animaux appartiennent au refuge. Merci de nous demander avant de les réutiliser.</p>
+  </div>
+</div>
+{% endblock %}

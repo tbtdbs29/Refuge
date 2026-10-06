@@ -1,0 +1,176 @@
+{% extends "layouts/admin.njk" %}
+{% from "partials/macros.njk" import icon, field, textarea, plate %}
+{% from "partials/figures.njk" import figure %}
+{% set pageTitle = animal.name if animal else 'Nouvel animal' %}
+
+{% macro choice(name, label, options, values, hint="", errors={}) %}
+<fieldset class="field{% if errors[name] %} has-error{% endif %}">
+  <legend>{{ label }}</legend>
+  {% if hint %}<p class="field__hint">{{ hint }}</p>{% endif %}
+  <div class="choice">
+    {% for key, text in options %}
+      <label><input type="radio" name="{{ name }}" value="{{ key }}" {% if values[name] == key %}checked{% endif %} data-preview="{{ name }}"><span>{{ text }}</span></label>
+    {% endfor %}
+  </div>
+  {% if errors[name] %}<p class="field__error">{{ errors[name] }}</p>{% endif %}
+</fieldset>
+{% endmacro %}
+
+{% macro toggle(name, label, values, hint="") %}
+<label class="switch">
+  <input type="checkbox" name="{{ name }}" {% if values[name] == 1 or values[name] == 'on' %}checked{% endif %}>
+  <span class="switch__track" aria-hidden="true"></span>
+  <span><strong>{{ label }}</strong>{% if hint %}<small>{{ hint }}</small>{% endif %}</span>
+</label>
+{% endmacro %}
+
+{% block header %}
+<header class="admin-head">
+  <div>
+    <a class="back-link" href="/admin/animaux">{{ icon('arrow-left') }} Animaux</a>
+    <h1 class="display">{{ animal.name if animal else 'Nouvel animal' }}</h1>
+    {% if animal %}<p class="admin-head__sub">Modifié le {{ animal.updated_at | stamp }}</p>{% endif %}
+  </div>
+  {% if animal %}
+    <div class="btn-row">
+      <a class="btn btn--ghost" href="{{ animal.url }}" target="_blank" rel="noopener">Voir la fiche {{ icon('external') }}</a>
+    </div>
+  {% endif %}
+</header>
+{% endblock %}
+
+{% block content %}
+{% if errors | length %}
+  <div class="notice notice--error admin-flash" role="alert"><svg aria-hidden="true"><use href="#i-alert"></use></svg><p>{{ errors.photo or 'Certains champs sont à corriger, ils sont signalés en rouge.' }}</p></div>
+{% endif %}
+
+{% if animal and animal.example %}<div class="notice admin-flash" role="note"><svg aria-hidden="true"><use href="#i-alert"></use></svg><p>Contenu d’exemple, affiché comme tel sur le site. Dès que vous l’enregistrez, il devient un contenu réel ; sinon, supprimez-le.</p></div>{% endif %}
+<div class="editor">
+  <form class="editor__form" id="animal-form" method="post" action="{{ ('/admin/animaux/' + animal.id) if animal else '/admin/animaux' }}?_csrf={{ csrfToken }}" enctype="multipart/form-data" data-animal-form>
+    <section class="form-card">
+      <h2 class="form-card__title label">Identité</h2>
+      <div class="form-grid form-grid--2">
+        {{ field('name', 'Nom', values, errors, 'text', 'Pour une fratrie : « Mistigri et Filou ».', 'data-preview="name" maxlength="60"', true) }}
+        {{ field('breed', 'Race ou type', values, errors, 'text', 'Ex. : croisé épagneul, européen…', 'maxlength="80"') }}
+      </div>
+      {{ choice('species', 'Espèce', { chien: 'Chien', chat: 'Chat', nac: 'NAC', ferme: 'Ferme' }, values, '', errors) }}
+      {{ choice('sex', 'Sexe', labels.SEX, values, '', errors) }}
+      <div class="form-grid form-grid--2">
+        {{ field('birth_date', 'Date de naissance', values, errors, 'date', 'Même approximative : l’âge se calcule tout seul.', 'data-preview="birth_date"') }}
+        {{ field('age_label', 'Ou âge écrit à la main', values, errors, 'text', 'Remplace l’âge calculé, ex. « environ 3 ans ».', 'data-preview="age_label" maxlength="40"') }}
+      </div>
+    </section>
+
+    <section class="form-card">
+      <h2 class="form-card__title label">Caractère</h2>
+      {{ field('tagline', 'Phrase d’accroche', values, errors, 'text', 'Une phrase qui donne envie, affichée sous son nom.', 'maxlength="140" data-preview="tagline"') }}
+      {{ choice('ok_cats', 'Avec les chats', { oui: 'Oui', non: 'Non', a_tester: 'À tester' }, values, '', errors) }}
+      {{ choice('ok_dogs', 'Avec les chiens', { oui: 'Oui', non: 'Non', a_tester: 'À tester' }, values, '', errors) }}
+      {{ choice('ok_kids', 'Avec les enfants', { oui: 'Oui', grands: 'Grands enfants', non: 'Non', a_tester: 'À tester' }, values, '', errors) }}
+      {{ choice('housing', 'Logement', labels.HOUSING, values, '', errors) }}
+      {{ textarea('description', 'Son histoire', values, errors, 'Ligne vide = nouveau paragraphe. Une ligne qui commence par « - » = liste. **texte** = gras.', 10) }}
+    </section>
+
+    <section class="form-card">
+      <h2 class="form-card__title label">Santé et accueil</h2>
+      <div class="form-grid form-grid--2">
+        {{ field('identification', 'N° d’identification', values, errors, 'text', '', 'maxlength="40"') }}
+        {{ field('foster_note', 'Famille d’accueil', values, errors, 'text', 'Laisser vide s’il est au refuge. Ex. : « chez Annick, Plouédern ».', 'maxlength="120"') }}
+      </div>
+      <div class="switches">
+        {{ toggle('vaccinated', 'Vacciné', values) }}
+        {{ toggle('dewormed', 'Déparasité', values) }}
+        {{ toggle('sterilized', 'Stérilisé', values) }}
+      </div>
+    </section>
+
+    <section class="form-card" id="photos">
+      <h2 class="form-card__title label">Photos</h2>
+      <div class="field{% if errors.photo %} has-error{% endif %}">
+        <label for="f-photos">Ajouter des photos</label>
+        <p class="field__hint">JPEG, PNG, WebP ou HEIC, 12 Mo maximum par photo. La première photo sert de couverture.</p>
+        <label class="dropzone" data-dropzone>
+          <input id="f-photos" type="file" name="photos" accept="image/*" multiple data-photo-input>
+          {{ icon('gift') }}
+          <span><strong>Choisir des photos</strong> ou les glisser ici</span>
+          <span class="dropzone__files" data-photo-names></span>
+        </label>
+        {% if errors.photo %}<p class="field__error">{{ errors.photo }}</p>{% endif %}
+      </div>
+      {% if animal and animal.photos | length %}
+        <ul class="photo-grid">
+          {% for photo in animal.photos %}
+            <li>
+              <img src="{{ photo.thumb }}" alt="Photo {{ loop.index }} de {{ animal.name }}" loading="lazy">
+              {% if loop.first %}<span class="photo-grid__cover label">Couverture</span>{% endif %}
+              <div class="photo-grid__actions">
+                {% if not loop.first %}<button class="btn btn--ghost btn--small" type="submit" form="cover-{{ photo.id }}">Mettre en couverture</button>{% endif %}
+                <button class="btn btn--danger btn--small" type="submit" form="del-photo-{{ photo.id }}" data-confirm="Supprimer cette photo ?">Supprimer</button>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </section>
+
+    <section class="form-card">
+      <h2 class="form-card__title label">Publication</h2>
+      {{ choice('status', 'Statut', labels.STATUS, values, 'Passer à « Adopté » le range automatiquement dans l’album des adoptés.', errors) }}
+      <div class="switches">
+        {{ toggle('published', 'Visible sur le site', values, 'Décochez pour préparer la fiche sans la publier.') }}
+        {{ toggle('featured', 'À la une', values, 'Apparaît dans la grande planche de la page d’accueil.') }}
+        {{ toggle('urgent', 'SOS', values, 'Appel urgent : santé fragile, long séjour… Tarif SOS appliqué.') }}
+      </div>
+      {{ field('fee_label', 'Frais d’adoption personnalisés', values, errors, 'text', 'Laisser vide pour appliquer la grille tarifaire (chiens et chats). Ex. : « 80 € », « Nous consulter ».', 'maxlength="60"') }}
+      <fieldset class="field">
+        <legend>Fond de la planche</legend>
+        <div class="swatches">
+          {% for key, backdrop in labels.BACKDROPS %}
+            <label class="swatch" style="--swatch: {{ backdrop.hex }}">
+              <input type="radio" name="backdrop" value="{{ key }}" {% if values.backdrop == key %}checked{% endif %} data-preview="backdrop" data-hex="{{ backdrop.hex }}">
+              <span class="swatch__chip" aria-hidden="true"></span>
+              <span class="swatch__name">{{ backdrop.label }}</span>
+            </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+    </section>
+
+    <div class="editor__bar">
+      <button class="btn" type="submit">{{ 'Enregistrer' if animal else 'Créer la fiche' }} {{ icon('check') }}</button>
+      <a class="btn btn--ghost" href="/admin/animaux">Annuler</a>
+    </div>
+  </form>
+
+  <aside class="editor__preview" aria-label="Aperçu de la planche">
+    <p class="label editor__preview-title">Aperçu sur le site</p>
+    {% set preview = animal if animal else { id: 0, name: values.name or 'Nom', backdropHex: labels.BACKDROPS[values.backdrop or 'ajonc'].hex, caption: [{label: 'Âge', value: '—'}, {label: 'Chats', value: 'À tester'}, {label: 'Chiens', value: 'À tester'}, {label: 'Enfants', value: 'À tester'}, {label: 'Logement', value: 'Maison'}], cover: null, figure: { kind: 'dog', palette: { fur: '#C9A26B', light: '#F5EAD6', dark: '#977041', iris: '#88B562' } }, altText: 'Aperçu', status: 'disponible' } %}
+    <div data-preview-plate>
+      {{ plate(preview, { size: 'card' }) }}
+    </div>
+    <p class="editor__preview-name display" data-preview-name>{{ preview.name }}</p>
+    <p class="editor__preview-tag" data-preview-tagline>{{ values.tagline }}</p>
+    <template data-figures>
+      {% for kind in ['dog', 'cat', 'rabbit', 'goat', 'sheep'] %}
+        <div data-figure="{{ kind }}">{{ figure(kind, preview.figure.palette, 'Aperçu') }}</div>
+      {% endfor %}
+    </template>
+  </aside>
+</div>
+
+{% if animal %}
+  {% for photo in animal.photos %}
+    <form id="cover-{{ photo.id }}" method="post" action="/admin/animaux/{{ animal.id }}/photos/{{ photo.id }}/couverture" hidden><input type="hidden" name="_csrf" value="{{ csrfToken }}"></form>
+    <form id="del-photo-{{ photo.id }}" method="post" action="/admin/animaux/{{ animal.id }}/photos/{{ photo.id }}/supprimer" hidden><input type="hidden" name="_csrf" value="{{ csrfToken }}"></form>
+  {% endfor %}
+
+  <section class="danger-zone" aria-labelledby="danger-title">
+    <h2 class="label" id="danger-title">Supprimer la fiche</h2>
+    <p>Pour un animal adopté, préférez le statut « Adopté » : il rejoint l’album. La suppression efface aussi les photos, définitivement.</p>
+    <form method="post" action="/admin/animaux/{{ animal.id }}/supprimer">
+      <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+      <button class="btn btn--danger btn--small" type="submit" data-confirm="Supprimer définitivement la fiche de {{ animal.name }} et ses photos ?">Supprimer {{ animal.name }}</button>
+    </form>
+  </section>
+{% endif %}
+{% endblock %}

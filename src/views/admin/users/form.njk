@@ -1,0 +1,38 @@
+{% extends "layouts/admin.njk" %}
+{% from "partials/macros.njk" import icon, field, select %}
+{% set pageTitle = account.name if account else 'Nouveau compte' %}
+
+{% block header %}
+<header class="admin-head">
+  <div>
+    <a class="back-link" href="/admin/comptes">{{ icon('arrow-left') }} Comptes</a>
+    <h1 class="display">{{ account.name if account else 'Nouveau compte' }}</h1>
+  </div>
+</header>
+{% endblock %}
+
+{% block content %}
+{% if errors | length %}<div class="notice notice--error admin-flash" role="alert"><svg aria-hidden="true"><use href="#i-alert"></use></svg><p>{{ errors.role or 'Certains champs sont à corriger.' }}</p></div>{% endif %}
+<form class="form-card form-card--narrow" method="post" action="{{ ('/admin/comptes/' + account.id) if account else '/admin/comptes' }}">
+  <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+  <div class="form-grid form-grid--2">
+    {{ field('name', 'Nom', values, errors, 'text', '', 'autocomplete="off"', true) }}
+    {{ field('email', 'Email', values, errors, 'email', 'Sert d’identifiant de connexion.', 'autocomplete="off"', true) }}
+  </div>
+  {{ select('role', 'Rôle', { editor: 'Éditeur : gère le contenu', admin: 'Administrateur : gère aussi les comptes' }, values, errors) }}
+  {{ field('password', 'Mot de passe provisoire' if not account else 'Nouveau mot de passe', {}, errors, 'password', ('10 caractères minimum. Transmettez-le à la personne, elle pourra le changer.' if not account else 'Laisser vide pour ne pas le changer. 10 caractères minimum.'), 'autocomplete="new-password"', not account) }}
+  <div class="editor__bar">
+    <button class="btn" type="submit">{{ 'Enregistrer' if account else 'Créer le compte' }} {{ icon('check') }}</button>
+    <a class="btn btn--ghost" href="/admin/comptes">Annuler</a>
+  </div>
+</form>
+{% if account and account.id != currentUser.id %}
+<section class="danger-zone">
+  <h2 class="label">Supprimer le compte</h2>
+  <form method="post" action="/admin/comptes/{{ account.id }}/supprimer">
+    <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+    <button class="btn btn--danger btn--small" type="submit" data-confirm="Supprimer le compte de {{ account.name }} ?">Supprimer</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

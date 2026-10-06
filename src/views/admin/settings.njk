@@ -1,0 +1,87 @@
+{% extends "layouts/admin.njk" %}
+{% from "partials/macros.njk" import icon, field, textarea %}
+{% set pageTitle = 'Réglages du site' %}
+
+{% macro feeRows(prefix, rows, title) %}
+<fieldset class="field">
+  <legend>{{ title }}</legend>
+  <div class="fee-rows" data-fee-rows="{{ prefix }}">
+    <div class="fee-rows__head" aria-hidden="true"><span>Libellé</span><span>Prix</span><span>Précision</span><span></span></div>
+    {% for row in rows %}
+      <div class="fee-row" data-fee-row>
+        <input type="hidden" name="{{ prefix }}_key" value="{{ row.key }}">
+        <input class="input" name="{{ prefix }}_label" value="{{ row.label }}" aria-label="Libellé">
+        <input class="input" name="{{ prefix }}_price" value="{{ row.price }}" aria-label="Prix">
+        <input class="input" name="{{ prefix }}_note" value="{{ row.note }}" aria-label="Précision">
+        <button class="icon-btn" type="button" data-remove-row aria-label="Retirer la ligne">{{ icon('close') }}</button>
+      </div>
+    {% endfor %}
+  </div>
+  <button class="btn btn--ghost btn--small" type="button" data-add-row="{{ prefix }}">Ajouter une ligne</button>
+</fieldset>
+{% endmacro %}
+
+{% block header %}
+<header class="admin-head">
+  <div><h1 class="display">Réglages du site</h1><p class="admin-head__sub">Ces informations apparaissent partout sur le site. Les modifications sont immédiates.</p></div>
+</header>
+{% endblock %}
+
+{% block content %}
+<nav class="segmented settings-tabs" aria-label="Rubriques des réglages">
+  {% for key, text in { shelter: 'Le refuge', banner: 'Bandeau d’information', fees: 'Tarifs', help: 'Aider le refuge' } %}
+    <a href="/admin/reglages?onglet={{ key }}" {% if section == key %}aria-current="page"{% endif %}>{{ text }}</a>
+  {% endfor %}
+</nav>
+
+{% if errors | length %}<div class="notice notice--error admin-flash" role="alert"><svg aria-hidden="true"><use href="#i-alert"></use></svg><p>Certains champs sont à corriger.</p></div>{% endif %}
+
+<form class="form-card form-card--narrow" method="post" action="/admin/reglages/{{ section }}">
+  <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+  {% if section == 'shelter' %}
+    {{ field('name', 'Nom complet', values, errors, 'text', '', '', true) }}
+    {{ field('shortName', 'Nom court', values, errors, 'text', 'Utilisé dans les titres des pages.') }}
+    {{ field('address', 'Adresse', values, errors) }}
+    <div class="form-grid form-grid--2">
+      {{ field('postcode', 'Code postal', values, errors) }}
+      {{ field('city', 'Ville', values, errors) }}
+    </div>
+    <div class="form-grid form-grid--2">
+      {{ field('phone', 'Téléphone', values, errors, 'tel') }}
+      {{ field('email', 'Email de contact', values, errors, 'email', '', '', true) }}
+    </div>
+    {{ field('hours', 'Horaires d’ouverture', values, errors) }}
+    {{ textarea('intro', 'Présentation courte', values, errors, 'Affichée sur l’accueil et l’album des adoptés.', 4) }}
+    <div class="form-grid form-grid--2">
+      {{ field('facebook', 'Page Facebook', values, errors, 'url', 'Adresse complète, commençant par https://') }}
+      {{ field('donationUrl', 'Lien de don en ligne', values, errors, 'url', 'HelloAsso par exemple. Laisser vide si aucun.') }}
+    </div>
+  {% elif section == 'banner' %}
+    <p class="field__hint">Un bandeau jaune affiché en haut de toutes les pages : fermeture exceptionnelle, alerte, grande nouvelle…</p>
+    <label class="switch">
+      <input type="checkbox" name="enabled" {% if values.enabled %}checked{% endif %}>
+      <span class="switch__track" aria-hidden="true"></span>
+      <span><strong>Afficher le bandeau</strong></span>
+    </label>
+    {{ field('text', 'Texte du bandeau', values, errors, 'text', 'Ex. : « Le refuge sera fermé le 25 décembre. »', 'maxlength="240"') }}
+  {% elif section == 'fees' %}
+    {{ feeRows('dogs', values.dogs, 'Chiens') }}
+    {{ textarea('dogsIncluded', 'Compris dans les frais (chiens)', values, errors, '', 3) }}
+    {{ feeRows('cats', values.cats, 'Chats') }}
+    {{ textarea('catsIncluded', 'Compris dans les frais (chats)', values, errors, '', 3) }}
+    {{ feeRows('others', values.others, 'Autres animaux') }}
+    {{ textarea('breedNote', 'Note sur les animaux de race', values, errors, '', 3) }}
+    <p class="field__hint">Les cinq premières lignes chiens et chats sont reliées aux fiches : l’âge et le statut SOS de l’animal choisissent automatiquement la bonne ligne.</p>
+  {% else %}
+    {{ textarea('donation', 'Faire un don', values, errors, '', 4) }}
+    {{ textarea('membership', 'Adhésion', values, errors, '', 4) }}
+    {{ textarea('volunteering', 'Bénévolat', values, errors, '', 4) }}
+    <div class="form-grid form-grid--2">
+      <div class="field"><label for="f-ika">Dons en nature : pour les animaux</label><p class="field__hint">Un besoin par ligne.</p><textarea class="textarea" id="f-ika" name="inKindAnimals" rows="6">{{ values.inKindAnimals | join('\n') }}</textarea></div>
+      <div class="field"><label for="f-iks">Dons en nature : pour le refuge</label><p class="field__hint">Un besoin par ligne.</p><textarea class="textarea" id="f-iks" name="inKindShelter" rows="6">{{ values.inKindShelter | join('\n') }}</textarea></div>
+    </div>
+    {{ textarea('extras', 'Autres coups de pouce', values, errors, '', 3) }}
+  {% endif %}
+  <div class="editor__bar"><button class="btn" type="submit">Enregistrer {{ icon('check') }}</button></div>
+</form>
+{% endblock %}

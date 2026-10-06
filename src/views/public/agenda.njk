@@ -1,0 +1,76 @@
+{% extends "layouts/site.njk" %}
+{% from "partials/macros.njk" import icon %}
+{% set pageTitle = 'Agenda du refuge' %}
+
+{% block content %}
+<div class="section-inner">
+  <header class="page-head">
+    <h1 class="display">Agenda</h1>
+    <div class="ornament" aria-hidden="true"><span class="ornament__diamond"></span></div>
+    <p class="lede">Journées d’adoption, kermesse, collectes : retrouvez-nous au refuge et ailleurs dans le pays de Landerneau.</p>
+  </header>
+
+  <div class="agenda-layout">
+    <section aria-labelledby="month-title">
+      <div class="month-nav">
+        <a href="/agenda?mois={{ month.prev.year }}-{{ month.prev.month | pad }}" aria-label="Mois précédent">{{ icon('chev-left') }}</a>
+        <h2 class="display" id="month-title" aria-live="polite">{{ month.label }}</h2>
+        <a href="/agenda?mois={{ month.next.year }}-{{ month.next.month | pad }}" aria-label="Mois suivant">{{ icon('chev-right') }}</a>
+      </div>
+      <table class="calendar">
+        <caption class="visually-hidden">Événements de {{ month.label }}</caption>
+        <thead>
+          <tr>{% for day in ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'] %}<th scope="col">{{ day }}</th>{% endfor %}</tr>
+        </thead>
+        <tbody>
+          {% for week in month.weeks %}
+            <tr>
+              {% for cell in week %}
+                {% if cell %}
+                  <td class="{% if cell.isToday %}is-today{% endif %}{% if cell.isPast %} is-past{% endif %}">
+                    <span class="calendar__day">{{ cell.day }}</span>
+                    {% if cell.events | length %}
+                      <span class="calendar__events">
+                        {% for event in cell.events %}<a class="cal-pill cal-pill--{{ event.category }}" href="/agenda/{{ event.id }}" title="{{ event.title }}">{{ event.title }}</a>{% endfor %}
+                      </span>
+                    {% endif %}
+                  </td>
+                {% else %}
+                  <td class="is-empty"></td>
+                {% endif %}
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <ul class="legend" aria-label="Légende">
+        {% for key, text in labels.EVENT_CATEGORIES %}
+          <li class="cal-pill--{{ key }}"><span></span>{{ text }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section aria-labelledby="upcoming-title">
+      <div class="section-head section-head--compact">
+        <h2 class="display section-title" id="upcoming-title" style="font-size: var(--step-3)">À venir</h2>
+        <a class="arrow-link" href="/agenda.ics">S’abonner {{ icon('calendar') }}</a>
+      </div>
+      {% if upcoming | length %}
+        <ul class="event-list">
+          {% for event in upcoming %}
+            <li>
+              <a class="event-row" href="/agenda/{{ event.id }}">
+                <span class="date-block date-block--{{ event.category }}"><span class="date-block__day display">{{ event.day }}</span><span class="date-block__month label">{{ event.monthShort }}</span></span>
+                <span class="event-row__body"><span class="event-row__title">{{ event.title }}</span><span class="event-row__meta">{{ event.categoryLabel }} · {{ event.timeLabel }}{% if event.location %} · {{ event.location }}{% endif %}{% if event.example %} · <em>exemple</em>{% endif %}</span></span>
+                {{ icon('arrow', 'event-row__arrow') }}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="empty-line">Aucun événement annoncé pour le moment.</p>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,278 @@
+{% extends "layouts/site.njk" %}
+{% from "partials/macros.njk" import icon, plate, animalCard %}
+{% set bodyClass = "page-home" %}
+
+{% block content %}
+<section class="hero" aria-labelledby="hero-title" data-carousel data-count="{{ featured | length }}">
+  <h1 class="visually-hidden" id="hero-title">{{ settings.shelter.name }} : des chiens, des chats et d’autres animaux attendent une famille</h1>
+
+  {% if featured | length %}
+  <div class="hero__text">
+    <div class="hero__names stack" aria-live="polite">
+      {% for animal in featured %}
+        <h2 class="hero__name display{% if animal.name | length > 11 %} is-long{% endif %}{% if loop.first %} is-active{% endif %}" data-slide="{{ loop.index0 }}" {% if not loop.first %}aria-hidden="true"{% endif %}>
+          <a href="{{ animal.url }}">{{ animal.name }}</a>
+        </h2>
+      {% endfor %}
+    </div>
+    <div class="ornament hero__ornament" aria-hidden="true"><span class="ornament__diamond"></span></div>
+    <div class="stack hero__lines">
+      {% for animal in featured %}
+        <p class="lede hero__line{% if loop.first %} is-active{% endif %}" data-slide="{{ loop.index0 }}" {% if not loop.first %}aria-hidden="true"{% endif %}>
+          {{ animal.summary or (animal.speciesLabel + ', ' + animal.age) }}
+        </p>
+      {% endfor %}
+    </div>
+    <div class="btn-row hero__actions">
+      <a class="btn" href="/animaux">Voir tous les animaux {{ icon('arrow') }}</a>
+      <a class="btn btn--ghost" href="/adopter">Comment adopter {{ icon('arrow') }}</a>
+    </div>
+
+    <ul class="species-row" aria-label="Animaux à l’adoption par espèce">
+      <li>
+        <a href="/animaux?espece=chiens">
+          {{ icon('dog', 'species-row__icon') }}
+          <span class="label">Chiens</span>
+          <span class="species-row__count">{{ counts.chien }} à l’adoption</span>
+        </a>
+      </li>
+      <li>
+        <a href="/animaux?espece=chats">
+          {{ icon('cat', 'species-row__icon') }}
+          <span class="label">Chats</span>
+          <span class="species-row__count">{{ counts.chat }} en famille d’accueil</span>
+        </a>
+      </li>
+      <li>
+        <a href="/animaux?espece=nac">
+          {{ icon('rabbit', 'species-row__icon') }}
+          <span class="label">NAC & ferme</span>
+          <span class="species-row__count">{{ counts.nac + counts.ferme }} à l’adoption</span>
+        </a>
+      </li>
+    </ul>
+  </div>
+
+  <div class="hero__plates stack">
+    {% for animal in featured %}
+      <div class="hero__plate{% if loop.first %} is-active{% endif %}" data-slide="{{ loop.index0 }}" {% if not loop.first %}aria-hidden="true" inert{% endif %}>
+        {{ plate(animal, { size: 'hero', heart: true, eager: loop.first }) }}
+      </div>
+    {% endfor %}
+  </div>
+
+  <aside class="hero__side" aria-label="À propos de l’animal à la une">
+    <div class="panel panel--ink">
+      <svg class="panel__mark" aria-hidden="true"><use href="#i-sprig"></use></svg>
+      <div class="stack">
+        {% for animal in featured %}
+          <div class="panel__story{% if loop.first %} is-active{% endif %}" data-slide="{{ loop.index0 }}" {% if not loop.first %}aria-hidden="true" inert{% endif %}>
+            <h3 class="panel__title">Son histoire</h3>
+            <p>{{ animal.description | truncate(115, false, '…') }}</p>
+            <a class="arrow-link" href="{{ animal.url }}">Rencontrer {{ animal.name }} {{ icon('arrow') }}</a>
+          </div>
+        {% endfor %}
+      </div>
+      <div class="panel__controls">
+        <p class="panel__counter label"><span data-counter>01</span> / {{ featured | length | pad }}</p>
+        <div class="panel__buttons">
+          <button class="square-btn" type="button" data-prev aria-label="Animal précédent">{{ icon('arrow-left') }}</button>
+          <button class="square-btn square-btn--sun" type="button" data-next aria-label="Animal suivant">{{ icon('arrow') }}</button>
+        </div>
+      </div>
+    </div>
+
+    {% set next = events[0] %}
+    <a class="panel panel--outline" href="{{ ('/agenda/' + next.id) if next else '/agenda' }}">
+      {% if next %}
+        <h3 class="panel__title">{{ icon('calendar') }} {{ next.title }}</h3>
+        <p>Prochain rendez-vous : {{ next.dateLabel }}, {{ next.timeLabel | lower }}{% if next.example %} <em>(exemple)</em>{% endif %}</p>
+      {% else %}
+        <h3 class="panel__title">{{ icon('calendar') }} L’agenda du refuge</h3>
+        <p>Kermesse, journées d’adoption, collectes : tous nos rendez-vous.</p>
+      {% endif %}
+      <span class="arrow-link">Voir l’agenda {{ icon('arrow') }}</span>
+    </a>
+
+    <a class="panel panel--fern" href="/aider">
+      <h3 class="panel__title">{{ icon('hands') }} Aider le refuge</h3>
+      <span class="arrow-link">Comment aider {{ icon('arrow') }}</span>
+    </a>
+  </aside>
+  {% else %}
+  <div class="hero__text hero__text--empty">
+    <h2 class="hero__name display">Bienvenue au refuge</h2>
+    <p class="lede">{{ settings.shelter.intro }}</p>
+  </div>
+  {% endif %}
+</section>
+
+{% if urgent | length %}
+<section class="sos-band" aria-labelledby="sos-title">
+  <div class="section-inner sos-band__inner">
+    <div class="sos-band__text reveal">
+      <h2 class="display section-title" id="sos-title">Ils ont besoin de vous, vite</h2>
+      <p>Ces animaux sont en situation d’urgence : santé fragile, séjour trop long ou départ imposé. Leurs frais d’adoption sont réduits.</p>
+      <a class="arrow-link" href="/aider#parrainer">Parrainer leurs soins {{ icon('arrow') }}</a>
+    </div>
+    <ul class="sos-band__list">
+      {% for animal in urgent %}
+        <li class="reveal" style="--reveal-delay: {{ loop.index0 * 0.08 }}s">
+          <a class="sos-chip" href="{{ animal.url }}">
+            {{ plate(animal, { size: 'mini', noCaption: true }) }}
+            <span class="sos-chip__name display">{{ animal.name }}</span>
+            <span class="label">{{ animal.speciesLabel }} · {{ animal.age }}</span>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+{% endif %}
+
+<section class="section" aria-labelledby="waiting-title">
+  <div class="section-inner">
+    <div class="section-head">
+      <h2 class="display section-title reveal" id="waiting-title">Ils vous attendent</h2>
+      <p class="section-head__text reveal">Chaque planche dit l’essentiel : avec qui l’animal s’entend et où il sera heureux. Le reste, il vous le dira lui-même.</p>
+      <a class="arrow-link reveal" href="/animaux">Tous les animaux {{ icon('arrow') }}</a>
+    </div>
+    <div class="plate-grid">
+      {% for animal in recent %}
+        {{ animalCard(animal, { index: loop.index0, heart: true }) }}
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="section section--paper" aria-labelledby="steps-title">
+  <div class="section-inner">
+    <div class="section-head">
+      <h2 class="display section-title reveal" id="steps-title">Adopter, pas à pas</h2>
+      <p class="section-head__text reveal">Une adoption se prépare. Voici comment nous l’accompagnons, du premier message au retour de nouvelles.</p>
+    </div>
+    <ol class="steps">
+      <li class="step reveal" style="--reveal-delay: 0s">
+        <span class="step__num display">1</span>
+        <h3 class="label">Le coup de cœur</h3>
+        <p>Écrivez-nous en décrivant votre foyer : enfants, autres animaux, jardin, temps d’absence. Les chats vivent en famille d’accueil, la demande se fait par email.</p>
+      </li>
+      <li class="step reveal" style="--reveal-delay: .08s">
+        <span class="step__num display">2</span>
+        <h3 class="label">La rencontre</h3>
+        <p>Vous venez faire connaissance au refuge, tous les jours de 10 h à 12 h et de 14 h à 17 h 30.</p>
+      </li>
+      <li class="step reveal" style="--reveal-delay: .16s">
+        <span class="step__num display">3</span>
+        <h3 class="label">Le certificat d’engagement</h3>
+        <p>Obligatoire depuis 2022 pour les chiens, chats, lapins et furets : il se signe au moins 7 jours avant l’adoption.</p>
+      </li>
+      <li class="step reveal" style="--reveal-delay: .24s">
+        <span class="step__num display">4</span>
+        <h3 class="label">Le grand départ</h3>
+        <p>L’animal part identifié, vacciné, déparasité et stérilisé selon son âge. Envoyez-nous des nouvelles, on adore ça.</p>
+      </li>
+    </ol>
+    <div class="btn-row steps__actions">
+      <a class="btn" href="/adopter">Conditions et tarifs {{ icon('arrow') }}</a>
+    </div>
+  </div>
+</section>
+
+<section class="section" aria-label="Agenda et actualités">
+  <div class="section-inner split">
+    <div class="split__col">
+      <div class="section-head section-head--compact">
+        <h2 class="display section-title reveal">Agenda</h2>
+        <a class="arrow-link reveal" href="/agenda">Tout l’agenda {{ icon('arrow') }}</a>
+      </div>
+      {% if events | length %}
+      <ul class="event-list">
+        {% for event in events %}
+          <li class="reveal" style="--reveal-delay: {{ loop.index0 * 0.06 }}s">
+            <a class="event-row" href="/agenda/{{ event.id }}">
+              <span class="date-block date-block--{{ event.category }}">
+                <span class="date-block__day display">{{ event.day }}</span>
+                <span class="date-block__month label">{{ event.monthShort }}</span>
+              </span>
+              <span class="event-row__body">
+                <span class="event-row__title">{{ event.title }}</span>
+                <span class="event-row__meta">{{ event.categoryLabel }} · {{ event.timeLabel }}{% if event.location %} · {{ event.location }}{% endif %}{% if event.example %} · <em>exemple</em>{% endif %}</span>
+              </span>
+              {{ icon('arrow', 'event-row__arrow') }}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+        <p class="empty-line">Pas de rendez-vous annoncé pour le moment. Revenez bientôt !</p>
+      {% endif %}
+    </div>
+    <div class="split__col">
+      <div class="section-head section-head--compact">
+        <h2 class="display section-title reveal">Nouvelles du refuge</h2>
+        <a class="arrow-link reveal" href="/actualites">Toutes les actualités {{ icon('arrow') }}</a>
+      </div>
+      {% if posts | length %}
+      <ul class="news-list">
+        {% for post in posts %}
+          <li class="reveal" style="--reveal-delay: {{ loop.index0 * 0.06 }}s">
+            <a class="news-row" href="{{ post.url }}">
+              <span class="news-row__title display">{{ post.title }}</span>
+              <span class="news-row__meta label">{{ post.categoryLabel }} · {{ post.dateLabel }}{% if post.example %} · Exemple{% endif %}</span>
+              <span class="news-row__summary">{{ post.summary | truncate(130, true, '…') }}</span>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+        <p class="empty-line">Les premières nouvelles arrivent bientôt.</p>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="help-band" aria-labelledby="help-title">
+  <div class="help-band__intro reveal">
+    <h2 class="display section-title" id="help-title">Trois façons d’aider</h2>
+    <p>Le refuge vit grâce à une petite équipe et beaucoup de cœurs généreux.</p>
+  </div>
+  <a class="help-field help-field--ajonc reveal" href="/aider#don" style="--reveal-delay: 0s">
+    <h3 class="display">Donner</h3>
+    <p>66 % de votre don est déductible de vos impôts.</p>
+    <span class="arrow-link">Faire un don {{ icon('arrow') }}</span>
+  </a>
+  <a class="help-field help-field--fern reveal" href="/aider#benevolat" style="--reveal-delay: .08s">
+    <h3 class="display">Promener</h3>
+    <p>Une heure de balade, c’est le meilleur moment de leur journée.</p>
+    <span class="arrow-link">Devenir bénévole {{ icon('arrow') }}</span>
+  </a>
+  <a class="help-field help-field--heather reveal" href="/contact?sujet=accueil" style="--reveal-delay: .16s">
+    <h3 class="display">Accueillir</h3>
+    <p>Nos chats grandissent en familles d’accueil. Pourquoi pas chez vous ?</p>
+    <span class="arrow-link">Devenir famille d’accueil {{ icon('arrow') }}</span>
+  </a>
+</section>
+
+{% if adoptedRecent | length %}
+<section class="section" aria-labelledby="adopted-title">
+  <div class="section-inner">
+    <div class="section-head">
+      <h2 class="display section-title reveal" id="adopted-title">Ils ont trouvé une famille</h2>
+      <p class="section-head__text reveal">{{ settings.shelter.intro }}</p>
+      <a class="arrow-link reveal" href="/adoptes">L’album des adoptés {{ icon('arrow') }}</a>
+    </div>
+    <ul class="adopted-strip">
+      {% for animal in adoptedRecent %}
+        <li class="reveal" style="--reveal-delay: {{ loop.index0 * 0.05 }}s">
+          <a href="{{ animal.url }}" class="adopted-strip__item">
+            {{ plate(animal, { size: 'mini', noCaption: true }) }}
+            <span class="adopted-strip__name display">{{ animal.name }}</span>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

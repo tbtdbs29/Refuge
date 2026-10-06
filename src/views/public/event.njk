@@ -1,0 +1,24 @@
+{% extends "layouts/site.njk" %}
+{% from "partials/macros.njk" import icon %}
+{% set pageTitle = event.title %}
+
+{% block content %}
+<div class="section-inner">
+  <a class="back-link" href="/agenda?mois={{ event.startDay | truncate(7, true, '') }}">{{ icon('arrow-left') }} L’agenda</a>
+  <article class="event-page">
+    <h1 class="display">{{ event.title }}</h1>
+    <p class="label" style="color: var(--bruyere-deep)">{{ event.categoryLabel }}</p>
+    {% if event.example %}<p class="example-note">Événement d’exemple : il illustre l’agenda en attendant les vrais rendez-vous.</p>{% endif %}
+    <ul class="event-meta">
+      <li>{{ icon('calendar') }}<span>{{ event.dateLabel | capitalize }}{% if event.multiDay %} au {{ event.endDateLabel }}{% endif %}</span></li>
+      <li>{{ icon('clock') }}<span>{{ event.timeLabel }}</span></li>
+      {% if event.location %}<li>{{ icon('pin') }}<span>{{ event.location }}</span></li>{% endif %}
+    </ul>
+    {% if event.descriptionHtml %}<div class="prose">{{ event.descriptionHtml | safe }}</div>{% endif %}
+    <div class="btn-row">
+      <a class="btn" href="/agenda/{{ event.id }}.ics">Ajouter à mon agenda {{ icon('calendar') }}</a>
+      <a class="btn btn--ghost" href="/contact">Une question ?</a>
+    </div>
+  </article>
+</div>
+{% endblock %}

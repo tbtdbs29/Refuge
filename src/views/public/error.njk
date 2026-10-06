@@ -1,0 +1,18 @@
+{% extends "layouts/site.njk" %}
+{% from "partials/macros.njk" import icon %}
+{% from "partials/figures.njk" import figure %}
+{% set pageTitle = title %}
+{% block content %}
+<div class="section-inner error-page">
+  <figure class="plate plate--mini" style="--backdrop: var(--ciel); --cells: 1; width: 12rem">
+    <div class="plate__frame"><div class="plate__stage"><div class="plate__figure">{{ figure('cat', { fur: '#D9822B', light: '#F7E2C6', dark: '#A65A17', iris: '#9BC46A' }, 'Un chat perplexe') }}</div></div></div>
+  </figure>
+  <p class="label">Erreur {{ status }}</p>
+  <h1 class="display">{{ title }}</h1>
+  <p class="lede">{{ message }}</p>
+  <div class="btn-row">
+    <a class="btn" href="/">Retour à l’accueil {{ icon('arrow') }}</a>
+    <a class="btn btn--ghost" href="/animaux">Voir les animaux</a>
+  </div>
+</div>
+{% endblock %}

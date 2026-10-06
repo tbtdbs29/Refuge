@@ -1,0 +1,11 @@
+{% extends "layouts/admin.njk" %}
+{% from "partials/macros.njk" import icon %}
+{% set pageTitle = title %}
+{% block content %}
+<div class="admin-empty">
+  <p class="label">Erreur {{ status }}</p>
+  <h1 class="display">{{ title }}</h1>
+  <p>{{ message }}</p>
+  <a class="btn" href="/admin">Retour au tableau de bord {{ icon('arrow') }}</a>
+</div>
+{% endblock %}

@@ -1,0 +1,94 @@
+{% from "partials/figures.njk" import figure %}
+
+{% macro icon(name, cls="") %}<svg class="icon {{ cls }}" aria-hidden="true" focusable="false"><use href="#i-{{ name }}"></use></svg>{% endmacro %}
+
+{#
+  Portrait plate: the animal on its flat painted backdrop, double-rule frame, ruled caption.
+  opts.size: "hero" | "card" | "mini"; opts.heart: show the coup de coeur toggle; opts.eager: eager image loading.
+#}
+{% macro plate(animal, opts={}) %}
+<figure class="plate plate--{{ opts.size or 'card' }}" style="--backdrop: {{ animal.backdropHex }}; --cells: {{ animal.caption | length }}; {% if opts.vt %}view-transition-name: plate-{{ animal.id }};{% endif %}" data-plate data-id="{{ animal.id }}">
+  <div class="plate__frame">
+    <div class="plate__stage">
+      {% if animal.cover %}
+        <img class="plate__photo" src="{{ animal.cover.thumb if opts.size != 'hero' else animal.cover.url }}" alt="{{ animal.altText }}" {% if not opts.eager %}loading="lazy"{% endif %} decoding="async">
+      {% else %}
+        <div class="plate__figure">{{ figure(animal.figure.kind, animal.figure.palette, animal.altText, animal.figure.traits) }}</div>
+        <span class="plate__note">{{ 'Exemple fictif · illustration' if animal.example else 'Illustration · photo à venir' }}</span>
+      {% endif %}
+      {% if animal.status == 'adopte' %}
+        <span class="plate__stamp plate__stamp--adopte">Adopté{{ 'e' if animal.sex == 'femelle' }}</span>
+      {% elif animal.urgent %}
+        <span class="plate__stamp plate__stamp--sos">SOS</span>
+      {% elif animal.status == 'reserve' %}
+        <span class="plate__stamp">Réservé{{ 'e' if animal.sex == 'femelle' }}</span>
+      {% endif %}
+      {% if opts.heart %}
+        <span class="plate__stamp plate__stamp--love" aria-hidden="true">Coup de cœur</span>
+        <button class="heart" type="button" data-heart="{{ animal.id }}" aria-pressed="false" aria-label="Coup de cœur pour {{ animal.name }}">
+          <svg aria-hidden="true"><use href="#i-heart"></use></svg>
+        </button>
+      {% endif %}
+    </div>
+  </div>
+  {% if not opts.noCaption %}
+  <dl class="plate__caption">
+    {% for cell in animal.caption %}
+      <div class="plate__cell" style="--i: {{ loop.index0 }}"><dt>{{ cell.label }}</dt><dd data-value="{{ cell.value }}">{{ cell.value }}</dd></div>
+    {% endfor %}
+  </dl>
+  {% endif %}
+</figure>
+{% endmacro %}
+
+{# A plate with its name and a link underneath, used in grids. #}
+{% macro animalCard(animal, opts={}) %}
+<article class="animal-card reveal" style="--reveal-delay: {{ (opts.index or 0) % 3 * 0.08 }}s">
+  {{ plate(animal, { heart: opts.heart, size: 'card', vt: true }) }}
+  <div class="animal-card__body">
+    <h3 class="animal-card__name display"><a href="{{ animal.url }}">{{ animal.name }}</a></h3>
+    <p class="animal-card__meta label">{{ animal.speciesLabel }}{% if animal.breed %} · {{ animal.breed }}{% endif %}{% if animal.sex != 'inconnu' and animal.sex != 'groupe' %} · {{ animal.sexLabel }}{% endif %}</p>
+    {% if animal.summary %}<p class="animal-card__summary">{{ animal.summary }}</p>{% endif %}
+  </div>
+</article>
+{% endmacro %}
+
+{% macro field(name, label, values, errors, type="text", hint="", attrs="", required=false) %}
+<div class="field{% if errors[name] %} has-error{% endif %}">
+  <label for="f-{{ name }}">{{ label }}{% if required %} <span aria-hidden="true">*</span>{% endif %}</label>
+  {% if hint %}<p class="field__hint" id="h-{{ name }}">{{ hint }}</p>{% endif %}
+  <input class="input" id="f-{{ name }}" name="{{ name }}" type="{{ type }}" value="{{ values[name] if values[name] !== undefined and values[name] !== null else '' }}" {% if required %}required{% endif %} {% if hint %}aria-describedby="h-{{ name }}"{% endif %} {% if errors[name] %}aria-invalid="true" aria-errormessage="e-{{ name }}"{% endif %} {{ attrs | safe }}>
+  {% if errors[name] %}<p class="field__error" id="e-{{ name }}">{{ errors[name] }}</p>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro textarea(name, label, values, errors, hint="", rows=6, required=false) %}
+<div class="field{% if errors[name] %} has-error{% endif %}">
+  <label for="f-{{ name }}">{{ label }}{% if required %} <span aria-hidden="true">*</span>{% endif %}</label>
+  {% if hint %}<p class="field__hint" id="h-{{ name }}">{{ hint }}</p>{% endif %}
+  <textarea class="textarea" id="f-{{ name }}" name="{{ name }}" rows="{{ rows }}" {% if required %}required{% endif %} {% if hint %}aria-describedby="h-{{ name }}"{% endif %} {% if errors[name] %}aria-invalid="true" aria-errormessage="e-{{ name }}"{% endif %}>{{ values[name] if values[name] else '' }}</textarea>
+  {% if errors[name] %}<p class="field__error" id="e-{{ name }}">{{ errors[name] }}</p>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro select(name, label, options, values, errors, hint="") %}
+<div class="field{% if errors[name] %} has-error{% endif %}">
+  <label for="f-{{ name }}">{{ label }}</label>
+  {% if hint %}<p class="field__hint">{{ hint }}</p>{% endif %}
+  <select class="select" id="f-{{ name }}" name="{{ name }}">
+    {% for key, text in options %}
+      <option value="{{ key }}" {% if values[name] == key %}selected{% endif %}>{{ text.label if text.label else text }}</option>
+    {% endfor %}
+  </select>
+  {% if errors[name] %}<p class="field__error">{{ errors[name] }}</p>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro flashNotice(flash) %}
+{% if flash %}
+<div class="notice notice--{{ flash.type }}" role="status">
+  <svg aria-hidden="true"><use href="#i-{{ 'check' if flash.type == 'success' else 'alert' }}"></use></svg>
+  <p>{{ flash.message }}</p>
+</div>
+{% endif %}
+{% endmacro %}

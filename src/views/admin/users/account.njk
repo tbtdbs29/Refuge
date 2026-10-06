@@ -1,0 +1,20 @@
+{% extends "layouts/admin.njk" %}
+{% from "partials/macros.njk" import icon, field %}
+{% set pageTitle = 'Mon compte' %}
+
+{% block header %}
+<header class="admin-head">
+  <div><h1 class="display">Mon compte</h1><p class="admin-head__sub">{{ currentUser.name }} · {{ currentUser.email }} · {{ labels.ROLES[currentUser.role] }}</p></div>
+</header>
+{% endblock %}
+
+{% block content %}
+<form class="form-card form-card--narrow" method="post" action="/admin/mon-compte">
+  <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+  <h2 class="form-card__title label">Changer mon mot de passe</h2>
+  {{ field('current', 'Mot de passe actuel', {}, errors, 'password', '', 'autocomplete="current-password"', true) }}
+  {{ field('password', 'Nouveau mot de passe', {}, errors, 'password', '10 caractères minimum. Une phrase courte est plus facile à retenir.', 'autocomplete="new-password"', true) }}
+  {{ field('confirm', 'Confirmer le nouveau mot de passe', {}, errors, 'password', '', 'autocomplete="new-password"', true) }}
+  <div class="editor__bar"><button class="btn" type="submit">Changer le mot de passe {{ icon('check') }}</button></div>
+</form>
+{% endblock %}

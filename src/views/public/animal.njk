@@ -1,0 +1,84 @@
+{% extends "layouts/site.njk" %}
+{% from "partials/macros.njk" import icon, plate, animalCard %}
+{% set pageTitle = animal.name + ' · ' + animal.speciesLabel + ' à adopter' %}
+{% set metaDescription = animal.summary %}
+{% if animal.cover %}{% set ogImage = animal.cover.url %}{% endif %}
+
+{% block content %}
+<div class="section-inner">
+  <a class="back-link" href="/animaux?espece={{ animal.speciesPath }}">{{ icon('arrow-left') }} Tous les {{ labels.SPECIES[animal.species].plural | lower }}</a>
+
+  <article class="animal-page">
+    <div class="animal-page__plate" data-gallery>
+      {{ plate(animal, { size: 'hero', heart: animal.status != 'adopte', eager: true, vt: true }) }}
+      {% if animal.photos | length > 1 %}
+        <ul class="thumbs" aria-label="Autres photos">
+          {% for photo in animal.photos %}
+            <li><button type="button" data-photo="{{ photo.url }}" aria-pressed="{{ 'true' if loop.first else 'false' }}" aria-label="Photo {{ loop.index }}"><img src="{{ photo.thumb }}" alt="" loading="lazy"></button></li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+
+    <div class="animal-page__text">
+      <h1 class="animal-page__name display">{{ animal.name }}</h1>
+      <p class="animal-page__meta label">{{ animal.speciesLabel }}{% if animal.breed %} · {{ animal.breed }}{% endif %} · {{ animal.sexLabel }}{% if animal.age %} · {{ animal.age }}{% endif %}</p>
+      {% if animal.tagline %}<p class="lede animal-page__tagline">{{ animal.tagline }}</p>{% endif %}
+      {% if animal.example %}<p class="example-note">Fiche d’exemple : {{ animal.name }} est un animal fictif qui illustre le site en attendant les vraies annonces.</p>{% endif %}
+
+      <dl class="facts">
+        {% if animal.birth_date %}<div><dt>Né{{ 'e' if animal.sex == 'femelle' }} le</dt><dd>{{ animal.birth_date | date }}</dd></div>{% endif %}
+        <div><dt>Logement idéal</dt><dd>{{ animal.housingLabel }}</dd></div>
+        <div><dt>Statut</dt><dd>{{ animal.statusLabel }}{% if animal.urgent and animal.status != 'adopte' %} · SOS{% endif %}</dd></div>
+        {% if animal.identification %}<div><dt>Identification</dt><dd>{{ animal.identification }}</dd></div>{% endif %}
+        <div><dt>Où le rencontrer</dt><dd>{{ ('Famille d’accueil · ' + animal.foster_note) if animal.foster_note else 'Au refuge' }}</dd></div>
+      </dl>
+
+      <ul class="health" aria-label="Soins">
+        <li class="{{ '' if animal.vaccinated else 'is-no' }}">{{ icon('check' if animal.vaccinated else 'close') }} Vacciné{{ 'e' if animal.sex == 'femelle' }}</li>
+        <li class="{{ '' if animal.dewormed else 'is-no' }}">{{ icon('check' if animal.dewormed else 'close') }} Déparasité{{ 'e' if animal.sex == 'femelle' }}</li>
+        <li class="{{ '' if animal.sterilized else 'is-no' }}">{{ icon('check' if animal.sterilized else 'close') }} Stérilisé{{ 'e' if animal.sex == 'femelle' }}</li>
+      </ul>
+
+      <div class="prose">{{ animal.descriptionHtml | safe }}</div>
+
+      {% if animal.status == 'adopte' %}
+        <div class="apply-box">
+          <h2 class="display" style="font-size: var(--step-3)">{{ animal.name }} a trouvé sa famille</h2>
+          <p>Adopté{{ 'e' if animal.sex == 'femelle' }} {% if animal.adopted_at %}le {{ animal.adopted_at | date }}{% endif %}. Merci à sa nouvelle famille !</p>
+          <a class="arrow-link" href="/animaux">Voir les animaux qui attendent encore {{ icon('arrow') }}</a>
+        </div>
+      {% else %}
+        <div class="apply-box">
+          {% if animal.fee %}
+            <h2 class="apply-box__fee">Frais d’adoption : <strong>{{ animal.fee.price }}</strong></h2>
+          {% endif %}
+          {% if animal.species == 'chat' %}
+            <p>Les chats vivent en famille d’accueil : envoyez-nous votre demande en précisant votre nom, votre adresse, votre téléphone et votre cadre de vie (enfants, autres animaux, temps d’absence).</p>
+          {% else %}
+            <p>Venez rencontrer {{ animal.name }} au refuge, {{ settings.shelter.hours | lower | nbsp }}, ou écrivez-nous d’abord en décrivant votre foyer.</p>
+          {% endif %}
+          {% if animal.status == 'reserve' %}<p><strong>{{ animal.name }} est réservé{{ 'e' if animal.sex == 'femelle' }}</strong> : vous pouvez tout de même nous écrire, au cas où.</p>{% endif %}
+          <div class="btn-row">
+            <a class="btn" href="/contact?animal={{ animal.slug }}">Je souhaite l’adopter {{ icon('arrow') }}</a>
+            <a class="btn btn--ghost" href="/adopter">Comment ça se passe</a>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </article>
+
+  {% if siblings | length %}
+  <section class="section" aria-labelledby="siblings-title">
+    <div class="section-head section-head--compact">
+      <h2 class="display section-title" id="siblings-title" style="font-size: var(--step-3)">Ils attendent aussi</h2>
+      <a class="arrow-link" href="/animaux?espece={{ animal.speciesPath }}">Voir tout {{ icon('arrow') }}</a>
+    </div>
+    <div class="plate-grid">
+      {% for item in siblings %}{{ animalCard(item, { index: loop.index0, heart: true }) }}{% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% if currentUser %}<a class="btn btn--sun admin-edit" href="/admin/animaux/{{ animal.id }}">Modifier cette fiche</a>{% endif %}
+{% endblock %}

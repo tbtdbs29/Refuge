@@ -1,0 +1,109 @@
+{% from "partials/macros.njk" import icon %}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if pageTitle %}{{ pageTitle }} · {{ settings.shelter.shortName }}{% else %}{{ settings.shelter.name }} · Adopter un chien, un chat à Landerneau{% endif %}</title>
+  <meta name="description" content="{{ metaDescription or ('Le ' + settings.shelter.name + ' accueille chiens, chats, NAC et animaux de ferme à ' + settings.shelter.city + '. Découvrez les animaux à adopter, l’agenda et comment aider.') }}">
+  <meta name="theme-color" content="#22304a">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{ settings.shelter.name }}">
+  <meta property="og:title" content="{{ pageTitle or settings.shelter.name }}">
+  {% if ogImage %}<meta property="og:image" content="{{ baseUrl }}{{ ogImage }}">{% endif %}
+  <link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/fonts/noto-serif-display-cond-400-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/barlow-condensed-600-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/fonts.css">
+  <link rel="stylesheet" href="/css/core.css">
+  <link rel="stylesheet" href="/css/site.css">
+  <link rel="alternate" type="text/calendar" title="Agenda du refuge" href="/agenda.ics">
+  <script src="/js/early.js"></script>
+  <script src="/js/site.js" defer></script>
+</head>
+<body class="site {{ bodyClass }}">
+  <a class="skip-link" href="#contenu">Aller au contenu</a>
+  {% include "partials/icons.njk" %}
+  <div class="shell">
+    <header class="rail" data-rail>
+      <div class="rail__top">
+        <a class="brand" href="/" aria-label="{{ settings.shelter.name }}, accueil">
+          <svg class="brand__mark" aria-hidden="true"><use href="#i-sprig"></use></svg>
+          <span class="brand__word display">Refuge</span>
+          <span class="brand__place label">du Pays de Landerneau</span>
+        </a>
+        <button class="rail__toggle" type="button" aria-expanded="false" aria-controls="site-nav" data-nav-toggle>
+          <span class="visually-hidden">Menu</span>
+          {{ icon('menu', 'rail__toggle-open') }}{{ icon('close', 'rail__toggle-close') }}
+        </button>
+      </div>
+      <nav class="rail__nav" id="site-nav" aria-label="Navigation principale" data-nav>
+        <div class="ornament rail__rule" aria-hidden="true"><span class="ornament__diamond"></span></div>
+        <ul>
+          {% set nav = [
+            ['/animaux', 'Nos animaux'],
+            ['/adopter', 'Adopter'],
+            ['/agenda', 'Agenda'],
+            ['/actualites', 'Actualités'],
+            ['/aider', 'Aider le refuge'],
+            ['/adoptes', 'Album des adoptés'],
+            ['/contact', 'Contact']
+          ] %}
+          {% for item in nav %}
+            {% set active = path == item[0] or path.startsWith(item[0] + '/') %}
+            <li><a href="{{ item[0] }}" {% if active %}aria-current="page"{% endif %}><span>{{ item[1] }}</span>{{ icon('arrow') }}</a></li>
+          {% endfor %}
+        </ul>
+        <div class="rail__info">
+          <p class="label rail__info-title">{{ icon('clock') }} Ouvert tous les jours</p>
+          <p>{{ settings.shelter.hours | replace('Tous les jours, de ', 'De ') | replace('Tous les jours de ', 'De ') | nbsp }}</p>
+          <p class="rail__phone"><a href="tel:{{ settings.shelter.phone | tel }}">{{ icon('phone') }}{{ settings.shelter.phone }}</a></p>
+          <a class="btn btn--sun btn--small rail__cta" href="/aider">Faire un don {{ icon('arrow') }}</a>
+        </div>
+      </nav>
+    </header>
+
+    <div class="main-col">
+      {% if settings.banner.enabled and settings.banner.text %}
+        <p class="banner" role="note">{{ icon('alert') }}<span>{{ settings.banner.text }}</span></p>
+      {% endif %}
+      <main id="contenu" tabindex="-1">
+        {% block content %}{% endblock %}
+      </main>
+
+      <footer class="footer">
+        <div class="footer__grid">
+          <div class="footer__brand">
+            <svg class="footer__mark" aria-hidden="true"><use href="#i-sprig"></use></svg>
+            <p class="display footer__name">{{ settings.shelter.name }}</p>
+            <p class="footer__intro">Association de protection animale. Chiens, chats, NAC et animaux de ferme attendent une famille.</p>
+          </div>
+          <div>
+            <p class="label footer__title">Nous trouver</p>
+            <address>
+              {{ settings.shelter.address }}<br>{{ settings.shelter.postcode }} {{ settings.shelter.city }}
+            </address>
+            <p>{{ settings.shelter.hours | nbsp }}</p>
+          </div>
+          <div>
+            <p class="label footer__title">Nous joindre</p>
+            <p><a href="tel:{{ settings.shelter.phone | tel }}">{{ settings.shelter.phone }}</a></p>
+            <p><a href="mailto:{{ settings.shelter.email }}">{{ settings.shelter.email }}</a></p>
+            {% if settings.shelter.facebook %}<p><a href="{{ settings.shelter.facebook }}" rel="noopener" target="_blank">Facebook</a></p>{% endif %}
+          </div>
+          <div>
+            <p class="label footer__title">Le site</p>
+            <ul class="footer__links">
+              <li><a href="/adopter#tarifs">Tarifs d’adoption</a></li>
+              <li><a href="/agenda.ics">S’abonner à l’agenda</a></li>
+              <li><a href="/mentions-legales">Mentions légales</a></li>
+              <li><a href="/admin">Espace bénévoles</a></li>
+            </ul>
+          </div>
+        </div>
+        <p class="footer__bottom label">© {{ year }} {{ settings.shelter.name }}</p>
+      </footer>
+    </div>
+  </div>
+</body>
+</html>

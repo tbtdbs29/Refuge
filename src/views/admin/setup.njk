@@ -1,0 +1,14 @@
+{% extends "layouts/auth.njk" %}
+{% from "partials/macros.njk" import field, icon %}
+{% set pageTitle = 'Installation' %}
+{% block content %}
+<h1 class="display auth-title">Premier compte</h1>
+<p class="auth-text">Aucun compte n’existe encore. Créez le compte administrateur du refuge : il pourra ensuite inviter les autres bénévoles.</p>
+<form class="form-stack" method="post" action="/admin/installation">
+  <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+  {{ field('name', 'Votre nom', values, errors, 'text', '', 'autocomplete="name"', true) }}
+  {{ field('email', 'Email', values, errors, 'email', '', 'autocomplete="username"', true) }}
+  {{ field('password', 'Mot de passe', {}, errors, 'password', '10 caractères minimum.', 'autocomplete="new-password" minlength="10"', true) }}
+  <button class="btn" type="submit">Créer le compte {{ icon('arrow') }}</button>
+</form>
+{% endblock %}

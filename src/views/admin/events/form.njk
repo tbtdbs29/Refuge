@@ -1,0 +1,52 @@
+{% extends "layouts/admin.njk" %}
+{% from "partials/macros.njk" import icon, field, textarea, select %}
+{% set pageTitle = event.title if event else 'Nouvel événement' %}
+
+{% block header %}
+<header class="admin-head">
+  <div>
+    <a class="back-link" href="/admin/agenda">{{ icon('arrow-left') }} Agenda</a>
+    <h1 class="display">{{ event.title if event else 'Nouvel événement' }}</h1>
+  </div>
+  {% if event and event.visibility == 'public' %}<a class="btn btn--ghost" href="/agenda/{{ event.id }}" target="_blank" rel="noopener">Voir sur le site {{ icon('external') }}</a>{% endif %}
+</header>
+{% endblock %}
+
+{% block content %}
+{% if errors | length %}<div class="notice notice--error admin-flash" role="alert"><svg aria-hidden="true"><use href="#i-alert"></use></svg><p>Certains champs sont à corriger.</p></div>{% endif %}
+{% if event and event.example %}<div class="notice admin-flash" role="note"><svg aria-hidden="true"><use href="#i-alert"></use></svg><p>Contenu d’exemple, affiché comme tel sur le site. Dès que vous l’enregistrez, il devient un contenu réel ; sinon, supprimez-le.</p></div>{% endif %}
+<form class="form-card form-card--narrow" method="post" action="{{ ('/admin/agenda/' + event.id) if event else '/admin/agenda' }}" data-event-form>
+  <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+  {{ field('title', 'Titre', values, errors, 'text', '', 'maxlength="120"', true) }}
+  <div class="form-grid form-grid--2">
+    {{ select('category', 'Type', labels.EVENT_CATEGORIES, values, errors) }}
+    {{ select('visibility', 'Visibilité', { public: 'Public : affiché sur le site', interne: 'Interne : bénévoles uniquement' }, values, errors) }}
+  </div>
+  <label class="switch">
+    <input type="checkbox" name="all_day" {% if values.all_day == 1 or values.all_day == 'on' %}checked{% endif %} data-all-day>
+    <span class="switch__track" aria-hidden="true"></span>
+    <span><strong>Toute la journée</strong></span>
+  </label>
+  <div class="form-grid form-grid--4">
+    {{ field('start_date', 'Début', values, errors, 'date', '', '', true) }}
+    <div data-time>{{ field('start_time', 'Heure', values, errors, 'time') }}</div>
+    {{ field('end_date', 'Fin (si plusieurs jours)', values, errors, 'date') }}
+    <div data-time>{{ field('end_time', 'Heure de fin', values, errors, 'time') }}</div>
+  </div>
+  {{ field('location', 'Lieu', values, errors, 'text', 'Ex. : Refuge, Galerie commerciale de Landerneau…', 'maxlength="160"') }}
+  {{ textarea('description', 'Description', values, errors, 'Infos pratiques, ce qu’il faut apporter…', 6) }}
+  <div class="editor__bar">
+    <button class="btn" type="submit">{{ 'Enregistrer' if event else 'Ajouter à l’agenda' }} {{ icon('check') }}</button>
+    <a class="btn btn--ghost" href="/admin/agenda">Annuler</a>
+  </div>
+</form>
+{% if event %}
+<section class="danger-zone">
+  <h2 class="label">Supprimer l’événement</h2>
+  <form method="post" action="/admin/agenda/{{ event.id }}/supprimer">
+    <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+    <button class="btn btn--danger btn--small" type="submit" data-confirm="Supprimer « {{ event.title }} » de l’agenda ?">Supprimer</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}
