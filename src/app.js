@@ -9,6 +9,7 @@ import { loadUser } from './middlewares/auth.js';
 import { errorHandler, notFound } from './middlewares/errorHandler.js';
 import { flash } from './middlewares/flash.js';
 import { csrfToken, verifyCsrf } from './middlewares/security.js';
+import { health } from './controllers/public/healthController.js';
 import { ensureDb } from './db/index.js';
 import { adminRouter } from './routes/admin.js';
 import { publicRouter } from './routes/public.js';
@@ -64,6 +65,9 @@ export function createApp() {
   };
   app.use(express.static(path.join(config.root, 'public'), staticOptions));
   app.use('/uploads', express.static(config.uploadDir, { maxAge: '30d', immutable: true }));
+
+  // Diagnostics stay reachable even when the database cannot be opened.
+  app.get('/sante', health);
 
   // The schema is created on first use (cold start); every dynamic request waits for it.
   app.use(async (req, res, next) => {

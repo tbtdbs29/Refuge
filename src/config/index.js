@@ -34,6 +34,11 @@ if (!sessionSecret) {
   throw new Error('SESSION_SECRET must be set in production');
 }
 
+// On Vercel the file system is read-only: without Turso nothing could be saved.
+if (process.env.VERCEL && !turso.value) {
+  throw new Error('TURSO_DATABASE_URL is not set for this Vercel environment: connect the Turso database to it and redeploy');
+}
+
 export const config = {
   root: ROOT,
   env,

@@ -111,6 +111,8 @@ Optional, to load the example content into Turso from your machine:
 TURSO_DATABASE_URL=libsql://… TURSO_AUTH_TOKEN=… npm run seed
 ```
 
+Troubleshooting: `GET /sante` returns a JSON report without secrets: database in use (Turso host or local file), photo storage, names of the configuration variables present, and row counts. On Vercel the app refuses to start without a Turso URL, since nothing could be saved on its read-only file system.
+
 Notes: request bodies are limited to about 4.5 MB on Vercel, so the back office shrinks photos in the browser before uploading; the login and contact rate limits are per function instance. For a classic server instead (VPS), run `npm start` behind an HTTPS reverse proxy with the same variables (or the local file and disk defaults) and back up `data/`.
 
 ## Content to replace
